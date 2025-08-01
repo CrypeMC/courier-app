@@ -1,29 +1,44 @@
+// Ждем, пока API Яндекс.Карт будет полностью готово к работе.
+// Весь наш код будет работать только после того, как выполнится эта команда.
 ymaps.ready(init);
 
 function init() {
-    // --- Элементы для отладки ---
+    // --- НАЧАЛО БЛОКА ОТЛАДКИ (НАША КОНСОЛЬ) ---
     const debugLog = document.getElementById('debug-log');
     const clearLogBtn = document.getElementById('clear-log-btn');
     
+    // Функция для вывода сообщений на наш экранный лог
     function logToScreen(message) {
-        const time = new Date().toLocaleTimeString();
-        debugLog.innerHTML += `[${time}] ${message}\n`;
-        debugLog.scrollTop = debugLog.scrollHeight; // Автопрокрутка вниз
+        // Проверяем, существует ли элемент, чтобы избежать ошибок
+        if (debugLog) {
+            const time = new Date().toLocaleTimeString();
+            debugLog.innerHTML += `[${time}] ${message}\n`;
+            // Автоматически прокручиваем лог вниз
+            debugLog.scrollTop = debugLog.scrollHeight;
+        }
+        // Также выводим в настоящую консоль, если она вдруг доступна
+        console.log(message);
     }
 
-    clearLogBtn.addEventListener('click', () => { debugLog.innerHTML = ''; });
+    // Очистка лога по кнопке
+    if (clearLogBtn) {
+        clearLogBtn.addEventListener('click', () => { debugLog.innerHTML = ''; });
+    }
+    // --- КОНЕЦ БЛОКА ОТЛАДКИ ---
 
-    logToScreen("Приложение инициализировано. ymaps готово.");
+    logToScreen("Приложение инициализировано. ymaps.ready сработал.");
 
-    // --- Остальной код ---
+    // Регистрация Service Worker для оффлайн работы
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js');
     }
 
+    // Глобальные переменные нашего приложения
     let zonesGeoJSON;
     let currentTrip = [];
     let shiftHistory = [];
 
+    // Получаем все нужные элементы со страницы
     const newTripBtn = document.getElementById('new-trip-btn');
     const endShiftBtn = document.getElementById('end-shift-btn');
     const currentTripSection = document.getElementById('current-trip-section');
@@ -38,11 +53,14 @@ function init() {
     const shiftTotalEarnings = document.getElementById('shift-total-earnings');
     const startNewShiftBtn = document.getElementById('start-new-shift-btn');
 
+    // Включаем подсказки для поля ввода адреса
     new ymaps.SuggestView('address-input');
-    logToScreen("Подсказки для адреса включены.");
+    logToScreen("Подсказки для поля ввода адреса включены.");
 
+    // Загружаем файл с нашими зонами
     loadZones().catch(error => {
         logToScreen(`КРИТИЧЕСКАЯ ОШИБКА при загрузке зон: ${error.message}`);
+        alert("Критическая ошибка: не удалось загрузить файл с зонами оплаты. Приложение не будет работать корректно.");
     });
 
     async function loadZones() {
@@ -55,6 +73,7 @@ function init() {
         logToScreen(`Файл зон успешно загружен. Найдено полигонов: ${zonesGeoJSON.features.length}`);
     }
 
+    // Функция, которая определяет цену по координатам
     function getPriceForCoordinates(coords) {
         if (!zonesGeoJSON) {
             logToScreen("Ошибка: Попытка расчета цены до загрузки зон!");
@@ -75,6 +94,7 @@ function init() {
         return { price: 0 };
     }
 
+    // Функция, которая проверяет, находится ли точка внутри многоугольника
     function isPointInPolygon(point, polygon) {
         const pointCoords = point.coordinates;
         const polygonCoords = polygon.coordinates[0];
@@ -89,6 +109,7 @@ function init() {
         return isInside;
     }
     
+    // Функция, которая вычисляет цену по имени зоны (например, "zone_170_plus_200")
     function calculatePriceFromZoneName(zoneName) {
         if (!zoneName) return { price: 0 };
         const parts = zoneName.split('_');
@@ -101,34 +122,46 @@ function init() {
         return { price: basePrice };
     }
 
+    // --- ОБРАБОТЧИКИ СОБЫТИЙ (нажатия на кнопки) ---
+
+    // Нажатие на кнопку "+" для добавления заказа
     addOrderBtn.addEventListener('click', async () => {
         const address = addressInput.value.trim();
         if (!address) return;
+
         logToScreen(`------------------\nНачинаю поиск адреса: "${address}"`);
         addOrderBtn.disabled = true; addOrderBtn.textContent = '...';
+
         try {
             const geoResult = await ymaps.geocode(address);
             const firstGeoObject = geoResult.geoObjects.get(0);
+
             if (!firstGeoObject) {
                 logToScreen(`ОШИБКА: Яндекс.Карты не смогли найти адрес "${address}"`);
                 alert('Адрес не найден');
                 return;
             }
+
             const coords = firstGeoObject.geometry.getCoordinates();
             logToScreen(`Яндекс нашел координаты: [${coords[0].toFixed(6)}, ${coords[1].toFixed(6)}] (широта, долгота)`);
+            
+            // !!!!! ГЛАВНОЕ ИСПРАВЛЕНИЕ: МЕНЯЕМ МЕСТАМИ КООРДИНАТЫ !!!!!
             const reversedCoords = [coords[1], coords[0]];
             logToScreen(`Меняю местами для проверки: [${reversedCoords[0].toFixed(6)}, ${reversedCoords[1].toFixed(6)}] (долгота, широта)`);
             
             const { price } = getPriceForCoordinates(reversedCoords);
+            
             if (price === 0) {
                  logToScreen("Итог: цена 0. Адрес считается вне зоны обслуживания.");
                  alert('Не удалось определить стоимость для данного адреса. Возможно, он вне зоны обслуживания.');
                  return;
             }
+
             logToScreen(`Итог: цена ${price} ₽. Добавляю заказ.`);
             currentTrip.push({ address, price });
             renderCurrentTrip();
             addressInput.value = '';
+
         } catch (error) {
             logToScreen(`КРИТИЧЕСКАЯ ОШИБКА геокодирования: ${error.message}`);
             alert('Произошла ошибка при поиске адреса.');
@@ -137,7 +170,7 @@ function init() {
         }
     });
 
-    // Остальные функции (renderCurrentTrip, endTripBtn, и т.д.) без изменений
+    // --- Остальные функции и обработчики (без изменений) ---
     function renderCurrentTrip(){currentOrdersList.innerHTML='';let total=0;currentTrip.forEach(order=>{const li=document.createElement('li');li.textContent=`${order.address} - ${order.price} ₽`;total+=order.price;currentOrdersList.appendChild(li);});tripTotalSpan.textContent=total;}
     function renderHistory(){historyList.innerHTML='';shiftHistory.forEach((trip,index)=>{const details=document.createElement('details');const summary=document.createElement('summary');const tripTotal=trip.orders.reduce((sum,order)=>sum+order.price,0);summary.textContent=`Рейс #${shiftHistory.length-index} - ${tripTotal} ₽`;const ul=document.createElement('ul');trip.orders.forEach(order=>{const li=document.createElement('li');li.textContent=`${order.address} - ${order.price} ₽`;ul.appendChild(li);});details.appendChild(summary);details.appendChild(ul);historyList.appendChild(details);});}
     function updateShiftState(isStarting){newTripBtn.disabled=!isStarting;endShiftBtn.disabled=!isStarting;if(!isStarting){currentTripSection.classList.add('hidden');}}
@@ -148,5 +181,7 @@ function init() {
     try{const response=await fetch('/.netlify/functions/api',{method:'POST',body:JSON.stringify(shiftData)});if(!response.ok)throw new Error('Failed to save shift');
     shiftTripsCount.textContent=shiftData.tripCount;shiftTotalEarnings.textContent=shiftData.totalEarnings;shiftSummarySection.classList.remove('hidden');historyList.innerHTML='';updateShiftState(false);}catch(error){alert('Не удалось сохранить смену. Проверьте интернет-соединение.');}});
     startNewShiftBtn.addEventListener('click',()=>{shiftHistory=[];shiftSummarySection.classList.add('hidden');updateShiftState(true);});
+    
+    // Устанавливаем начальное состояние кнопок
     updateShiftState(true);
 }
