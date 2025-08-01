@@ -27,20 +27,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const startNewShiftBtn = document.getElementById('start-new-shift-btn');
 
     // --- Инициализация ---
+    if (window.ymaps) {
     ymapsReady();
+} else {
+    // Если скрипт карт почему-то не загрузился (например, блокировщик рекламы)
+    // мы ждем загрузки страницы и пробуем еще раз.
+    window.addEventListener('load', ymapsReady);
+}
 
     async function ymapsReady() {
         try {
+            // Сначала загружаем наши зоны
             await loadZones();
-            ymaps = window.ymaps;
-            if (ymaps) {
-                new ymaps.SuggestView('address-input');
-            } else {
-                console.error('Yandex Maps API not loaded');
-            }
+            // Теперь ждем, пока API Яндекса будет готово
+            await ymaps.ready();
+            
+            // И только теперь, когда мы уверены, что ymaps существует и готов, мы его используем
+            new ymaps.SuggestView('address-input');
+            
         } catch (error) {
             console.error('Initialization failed:', error);
-            alert('Не удалось загрузить зоны. Проверьте файл zones.geojson');
+            alert('Не удалось загрузить зоны или API карт. Проверьте консоль на ошибки.');
         }
     }
 
