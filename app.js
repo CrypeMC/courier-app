@@ -37,7 +37,18 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log("Zones loaded successfully.");
 
             // 2. Инициализируем подсказки для поля ввода
-            new ymaps.SuggestView('address-input');
+            const suggest = new ymaps.control.SearchControl({
+    options: {
+        // Ограничиваем поиск областью на карте, чтобы подсказки были более релевантными
+        provider: 'yandex#search'
+    }
+});
+
+// ВАЖНО: Мы не добавляем этот элемент на карту, мы его просто создаем,
+// чтобы использовать его логику подсказок для нашего поля ввода.
+// Активируем его для нашего поля
+suggest.attach(document.getElementById('address-input'));
+
             console.log("SuggestView initialized.");
 
             // 3. Активируем интерфейс
