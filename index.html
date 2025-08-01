@@ -9,16 +9,41 @@
 </head>
 <body>
 
-    <!-- НАШ НОВЫЙ СТАРТОВЫЙ ЭКРАН -->
-    <div id="start-shift-screen">
+<div class="app-container">
+
+    <!-- ЭКРАН ВХОДА И РЕГИСТРАЦИИ -->
+    <div id="auth-screen" class="screen hidden">
         <div class="container">
-            <h1>Смена закрыта</h1>
-            <button id="open-shift-btn">Открыть новую смену</button>
+            <div id="login-form">
+                <h1>Вход</h1>
+                <input type="email" id="login-email" placeholder="Email" autocomplete="email">
+                <input type="password" id="login-password" placeholder="Пароль" autocomplete="current-password">
+                <button id="login-btn">Войти</button>
+                <a href="#" id="show-register-link" class="form-link">Нет аккаунта? Зарегистрироваться</a>
+            </div>
+            <div id="register-form" class="hidden">
+                <h1>Регистрация</h1>
+                <input type="email" id="register-email" placeholder="Email" autocomplete="email">
+                <input type="password" id="register-password" placeholder="Пароль" autocomplete="new-password">
+                <button id="register-btn">Зарегистрироваться</button>
+                <a href="#" id="show-login-link" class="form-link">Уже есть аккаунт? Войти</a>
+            </div>
         </div>
     </div>
 
-    <!-- ОСНОВНОЕ ПРИЛОЖЕНИЕ (будет скрыто вначале) -->
-    <div id="main-app" class="hidden">
+    <!-- ЭКРАН НАЧАЛА СМЕНЫ -->
+    <div id="start-shift-screen" class="screen hidden">
+        <div class="container">
+            <h1>Смена закрыта</h1>
+            <p>Вы вошли как: <b id="user-email-display"></b></p>
+            <button id="open-shift-btn">Открыть новую смену</button>
+            <button id="history-btn">История смен</button>
+            <button id="logout-btn" class="danger-btn">Выйти</button>
+        </div>
+    </div>
+
+    <!-- ОСНОВНОЕ ПРИЛОЖЕНИЕ -->
+    <div id="main-app" class="screen hidden">
         <div class="container">
             <h1>Смена</h1>
             <div class="controls">
@@ -44,7 +69,6 @@
                 <h2>Смена завершена!</h2>
                 <p>Всего рейсов: <span id="shift-trips-count">0</span></p>
                 <p>Общий заработок: <span id="shift-total-earnings">0</span> ₽</p>
-                <!-- Эта кнопка теперь открывает стартовый экран, а не новую смену -->
                 <button id="go-to-start-screen-btn">Ок, на главный экран</button>
             </div>
 
@@ -60,7 +84,19 @@
         </div>
     </div>
 
-    <script src="https://api-maps.yandex.ru/2.1/?apikey=67c02755-d347-4602-94f5-0470da39c1d1&lang=ru_RU&load=geolocation,geocode,suggest"></script>
-    <script src="app.js"></script>
+    <!-- ЭКРАН ИСТОРИИ -->
+    <div id="history-screen" class="screen hidden">
+        <div class="container">
+            <h1>История всех смен</h1>
+            <div id="full-history-list"></div>
+            <button id="back-to-start-screen-btn">Назад</button>
+        </div>
+    </div>
+
+</div>
+
+<script src="https://api-maps.yandex.ru/2.1/?apikey=ВАШ_КЛЮЧ_ДЛЯ_КАРТ&lang=ru_RU&load=geolocation,geocode,suggest"></script>
+<script src="app.js"></script>
+
 </body>
 </html>
