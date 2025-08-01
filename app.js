@@ -5,7 +5,14 @@ async function init() {
     const debugLog = document.getElementById('debug-log');
     const clearLogBtn = document.getElementById('clear-log-btn');
     function logToScreen(message) { if (debugLog) { const time = new Date().toLocaleTimeString(); debugLog.innerHTML += `[${time}] ${message}\n`; debugLog.scrollTop = debugLog.scrollHeight; } console.log(message); }
-    if (clearLogBtn) { clearLogBtn.addEventListener('click', () => { debugLog.innerHTML = ''; }); }
+    if (clearLogBtn) { clearLogBtn.addEventListener('click', () => { debugLog.innerHTML = ''; }); } 
+if (copyLogBtn) { // ДОБАВИЛИ ОБРАБОТЧИК
+    copyLogBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(debugLog.innerText)
+            .then(() => alert('Лог скопирован в буфер обмена!'))
+            .catch(err => alert('Ошибка копирования: ', err));
+    });
+}
     logToScreen("Приложение инициализировано.");
     // --- КОНЕЦ БЛОКА ОТЛАДКИ ---
 
