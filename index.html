@@ -28,19 +28,6 @@
             <button id="end-trip-btn">Завершить рейс</button>
         </div>
 
-    <!-- НАЧАЛО БЛОКА ОТЛАДКИ -->
-    <div id="debug-container">
-        <h2>Окно отладки</h2>
-        <button id="clear-log-btn">Очистить лог</button>
-        <pre id="debug-log"></pre>
-    </div>
-    <!-- КОНЕЦ БЛОКА ОТЛАДКИ -->
-
-    <script src="https://api-maps.yandex.ru/2.1/?apikey=7594a6f2-b91d-4043-8efc-c51a6451a514&lang=ru_RU&load=package.full" defer></script>
-    <script src="app.js"></script>
-</body>
-</html>
-        
         <div id="shift-summary-section" class="hidden">
             <h2>Смена завершена!</h2>
             <p>Всего рейсов: <span id="shift-trips-count">0</span></p>
@@ -50,9 +37,22 @@
 
         <h2>История за смену</h2>
         <div id="history-list"></div>
+
+        <!-- НАЧАЛО БЛОКА ОТЛАДКИ -->
+        <div id="debug-container">
+            <h2>Окно отладки</h2>
+            <button id="clear-log-btn">Очистить лог</button>
+            <pre id="debug-log"></pre>
+        </div>
+        <!-- КОНЕЦ БЛОКА ОТЛАДКИ -->
     </div>
 
+    <!-- ПРАВИЛЬНОЕ ПОДКЛЮЧЕНИЕ СКРИПТОВ -->
+    <!-- Сначала загружается Яндекс API -->
     <script src="https://api-maps.yandex.ru/2.1/?apikey=7594a6f2-b91d-4043-8efc-c51a6451a514&lang=ru_RU&load=package.full"></script>
-    <script src="app.js" defer></script>
+    
+    <!-- И ТОЛЬКО ПОТОМ наш скрипт, который будет его использовать -->
+    <script src="app.js"></script>
+
 </body>
 </html>
