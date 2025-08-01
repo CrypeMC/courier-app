@@ -1,14 +1,5 @@
+// Ждем, пока загрузится вся структура страницы
 document.addEventListener('DOMContentLoaded', () => {
-    // Регистрация Service Worker для оффлайн работы
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').catch(err => console.error('Service Worker registration failed:', err));
-    }
-
-    // --- Глобальные переменные и состояние ---
-    let zonesGeoJSON;
-    let currentTrip = [];
-    let shiftHistory = [];
-    let shiftInProgress = false;
 
     // --- Элементы DOM ---
     const newTripBtn = document.getElementById('new-trip-btn');
@@ -25,56 +16,58 @@ document.addEventListener('DOMContentLoaded', () => {
     const shiftTotalEarnings = document.getElementById('shift-total-earnings');
     const startNewShiftBtn = document.getElementById('start-new-shift-btn');
 
-    // --- Инициализация ---
+    // --- Глобальные переменные и состояние ---
+    let zonesGeoJSON;
+    let currentTrip = [];
+    let shiftHistory = [];
+    let shiftInProgress = false;
 
-    // Эта функция будет вызвана АВТОМАТИЧЕСКИ после загрузки скрипта Яндекс.Карт
+    // --- Главная функция инициализации ---
+    // Она будет вызвана только когда API Яндекс.Карт будет 100% готово.
+    async function init() {
+        try {
+            console.log("Yandex Maps API is ready. Initializing app...");
 
-async function onYandexMapsReady() {
-    try {
-        // API уже загружено, ymaps гарантированно существует.
-        // Загружаем наши гео-зоны
-        await loadZones();
-        
-        // Инициализируем подсказки для поля ввода
-        new ymaps.SuggestView('address-input');
-        
-        console.log("Yandex Maps API and zones are ready!"); // Добавим лог для отладки
+            // 1. Загружаем наши зоны
+            const response = await fetch('/data/zones.geojson');
+            if (!response.ok) {
+                throw new Error(`Failed to load zones.geojson. Status: ${response.status}`);
+            }
+            zonesGeoJSON = await response.json();
+            console.log("Zones loaded successfully.");
 
-    } catch (error) {
-        console.error('Initialization failed inside onYandexMapsReady:', error);
-        alert('Не удалось загрузить зоны или API карт. Проверьте консоль на ошибки.');
-    }
-}
+            // 2. Инициализируем подсказки для поля ввода
+            new ymaps.SuggestView('address-input');
+            console.log("SuggestView initialized.");
 
-// Добавим функцию-обработчик ошибок для полноты картины
-function onYandexMapsError(error) {
-    console.error('Yandex Maps script loading error:', error);
-    alert('Не удалось загрузить скрипт Яндекс.Карт. Проверьте интернет-соединение или работу блокировщиков рекламы.');
-}
+            // 3. Активируем интерфейс
+            updateShiftState(true);
 
-    async function loadZones() {
-        const response = await fetch('/data/zones.geojson');
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
+        } catch (error) {
+            console.error('Initialization failed:', error);
+            alert(`Ошибка инициализации: ${error.message}. Проверьте консоль (F12).`);
         }
-        zonesGeoJSON = await response.json();
     }
+    
+    // Запускаем инициализацию через ymaps.ready. Это гарантирует, что ymaps и все его модули загружены.
+    ymaps.ready(init);
 
-    // --- Функции для расчета стоимости ---
+    // --- Функции ---
+
     function getPriceForCoordinates(coords) {
         const point = { type: 'Point', coordinates: coords };
         for (const feature of zonesGeoJSON.features) {
             const polygon = feature.geometry;
-            if (isPointInPolygon(point, polygon)) {
-                return calculatePriceFromZoneName(feature.properties.description);
+            // Простая проверка для MultiPolygon и Polygon
+            if (feature.geometry.type === "Polygon" && isPointInPolygon(point, polygon.coordinates[0])) {
+                 return calculatePriceFromZoneName(feature.properties.description);
             }
         }
         return { price: 0, description: 'Зона не найдена' };
     }
 
-    function isPointInPolygon(point, polygon) {
+    function isPointInPolygon(point, polygonCoords) {
         const pointCoords = point.coordinates;
-        const polygonCoords = polygon.coordinates[0];
         let isInside = false;
         for (let i = 0, j = polygonCoords.length - 1; i < polygonCoords.length; j = i++) {
             const xi = polygonCoords[i][0], yi = polygonCoords[i][1];
@@ -100,8 +93,6 @@ function onYandexMapsError(error) {
         return { price: basePrice, description: `Зона (${basePrice})` };
     }
 
-
-    // --- Функции для обновления UI ---
     function renderCurrentTrip() {
         currentOrdersList.innerHTML = '';
         let total = 0;
@@ -128,7 +119,6 @@ function onYandexMapsError(error) {
                 li.textContent = `${order.address} - ${order.price} ₽`;
                 ul.appendChild(li);
             });
-
             details.appendChild(summary);
             details.appendChild(ul);
             historyList.appendChild(details);
@@ -145,6 +135,7 @@ function onYandexMapsError(error) {
     }
     
     // --- Обработчики событий ---
+
     newTripBtn.addEventListener('click', () => {
         currentTrip = [];
         renderCurrentTrip();
@@ -160,11 +151,12 @@ function onYandexMapsError(error) {
         addOrderBtn.textContent = '...';
 
         try {
+            // Используем ymaps.geocode, который теперь должен быть доступен
             const geoObject = await ymaps.geocode(address);
             const firstGeoObject = geoObject.geoObjects.get(0);
             if (!firstGeoObject) {
                 alert('Адрес не найден');
-                return;
+                throw new Error('Address not found by geocoder');
             }
             const coords = firstGeoObject.geometry.getCoordinates();
             const { price } = getPriceForCoordinates(coords);
@@ -189,7 +181,7 @@ function onYandexMapsError(error) {
 
     endTripBtn.addEventListener('click', () => {
         if (currentTrip.length === 0) return;
-        shiftHistory.unshift({ orders: [...currentTrip] }); // Добавляем в начало
+        shiftHistory.unshift({ orders: [...currentTrip] });
         currentTrip = [];
         renderHistory();
         currentTripSection.classList.add('hidden');
@@ -217,12 +209,9 @@ function onYandexMapsError(error) {
             });
             if (!response.ok) throw new Error('Failed to save shift');
 
-            // Показываем итоговый экран
             shiftTripsCount.textContent = shiftData.tripCount;
             shiftTotalEarnings.textContent = shiftData.totalEarnings;
             shiftSummarySection.classList.remove('hidden');
-
-            // Сбрасываем все
             historyList.innerHTML = '';
             updateShiftState(false);
 
@@ -238,6 +227,8 @@ function onYandexMapsError(error) {
         updateShiftState(true);
     });
 
-    // --- Начальное состояние ---
-    updateShiftState(true); // Начинаем с активной смены
+    // Регистрируем Service Worker для оффлайн работы
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(err => console.error('Service Worker registration failed:', err));
+    }
 });
