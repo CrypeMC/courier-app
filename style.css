@@ -61,3 +61,11 @@ li { background: #f9f9f9; padding: 10px; border: 1px solid #ddd; border-radius: 
     background: #6c757d;
     margin-bottom: 10px;
 }          
+/* --- ДИАГНОСТИЧЕСКИЙ СТИЛЬ ДЛЯ ПОДСКАЗОК --- */
+/* Этот стиль обращается напрямую к панели, которую создает Яндекс */
+
+.ymaps-suggest-pane {
+    z-index: 99999 !important;      /* Ставим поверх АБСОЛЮТНО ВСЕХ элементов */
+    background-color: yellow !important;  /* Делаем фон ярко-желтым, чтобы заметить */
+    border: 3px solid red !important;     /* Добавляем жирную красную рамку */
+}
