@@ -15,7 +15,7 @@ console.log('app.js СТАРТОВАЛ');
     // ПЕРЕМЕННЫЕ, КОТОРЫЕ ВИДНЫ ВСЕМ ФУНКЦИЯМ ВНУТРИ
     let userCoords = null;
     const addressInput = document.getElementById('address-input');
-    const suggestContainer = document.getElementById('my-suggest-container'); // ГЛАВНОЕ ИЗМЕНЕНИЕ: мы нашли наш холст здесь
+    const suggestContainer = document.getElementById('my-suggest-container');
 
     if (typeof ymaps === 'undefined') {
         logToScreen('КРИТИЧЕСКАЯ ОШИБКА: `ymaps` не найден. Проверьте index.html!');
@@ -44,7 +44,7 @@ console.log('app.js СТАРТОВАЛ');
                     const data = await response.json();
                     if (!response.ok) { throw new Error(data.error || `Сервер вернул статус ${response.status}`); }
                     logToScreen(`Получено ${data.length} подсказок от нашего сервера.`);
-                    renderOurOwnSuggestions(data); // Теперь эта функция увидит suggestContainer
+                    renderOurOwnSuggestions(data);
                 } catch (e) {
                     logToScreen(`ОШИБКА при получении подсказок: ${e.message}`);
                 }
@@ -64,7 +64,7 @@ console.log('app.js СТАРТОВАЛ');
             div.textContent = item.address.formatted_address;
             div.addEventListener('click', () => {
                 logToScreen(`Выбрано: "${item.address.formatted_address}"`);
-                addressInput.value = item.address.formatted_address;
+                document.getElementById('address-input').value = item.address.formatted_address; // Исправлено для единообразия
                 suggestContainer.innerHTML = '';
             });
             list.appendChild(div);
@@ -90,9 +90,46 @@ console.log('app.js СТАРТОВАЛ');
     function updateShiftState(isStarting){logToScreen(`Вызываю updateShiftState с параметром: ${isStarting}`);newTripBtn.disabled=!isStarting;endShiftBtn.disabled=!isStarting;if(!isStarting){currentTripSection.classList.add('hidden');}}
     newTripBtn.addEventListener('click',()=>{currentTrip=[];renderCurrentTrip();currentTripSection.classList.remove('hidden');newTripBtn.disabled=true;});
     endTripBtn.addEventListener('click',()=>{if(currentTrip.length===0)return;shiftHistory.unshift({orders:[...currentTrip]});currentTrip=[];renderHistory();currentTripSection.classList.add('hidden');newTripBtn.disabled=false;});
-    endShiftBtn.addEventListener('click',async()=>{if(shiftHistory.length===0){alert('Нельзя завершить смену без выполненных рейсов.');return;}
-    const shiftData={date:new Date().toISOString(),trips:shiftHistory,totalEarnings:shiftHistory.reduce((total,trip)=>total+trip.orders.reduce((tripSum,order)=>tripSum+order.price,0),0),tripCount:shiftHistory.length};
-    try{const response=await fetch('/.netlify/functions/api',{method:'POST',body:JSON.stringify(shiftData)});if(!response.ok)throw new Error('Failed to save shift');
-    shiftTripsCount.textContent=shiftData.tripCount;shiftTotalEarnings.textContent=shiftData.totalEarnings;shiftSummarySection.classList.remove('hidden');historyList.innerHTML='';updateShiftState(false);}catch(error){alert('Не удалось сохранить смену.');}});
+    
+    // --- НАШ ОБНОВЛЕННЫЙ ОБРАБОТЧИК ---
+    endShiftBtn.addEventListener('click', async () => {
+        if (shiftHistory.length === 0) {
+            alert('Нельзя завершить смену без выполненных рейсов.');
+            return;
+        }
+        const shiftData = {
+            date: new Date().toISOString(),
+            trips: shiftHistory,
+            totalEarnings: shiftHistory.reduce((total, trip) => total + trip.orders.reduce((tripSum, order) => tripSum + order.price, 0), 0),
+            tripCount: shiftHistory.length
+        };
+
+        try {
+            logToScreen("Отправляю данные о смене на сервер...");
+            const response = await fetch('/.netlify/functions/api', {
+                method: 'POST',
+                body: JSON.stringify(shiftData)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Неизвестная ошибка сервера');
+            }
+            
+            logToScreen("Смена успешно сохранена!");
+            shiftTripsCount.textContent = shiftData.tripCount;
+            shiftTotalEarnings.textContent = shiftData.totalEarnings;
+            shiftSummarySection.classList.remove('hidden');
+            historyList.innerHTML = '';
+            updateShiftState(false);
+
+        } catch (error) {
+            logToScreen(`ОШИБКА СОХРАНЕНИЯ: ${error.message}`);
+            alert(`Не удалось сохранить смену:\n\n${error.message}`);
+        }
+    });
+    // --- КОНЕЦ ОБНОВЛЕННОГО ОБРАБОТЧИКА ---
+
     startNewShiftBtn.addEventListener('click',()=>{shiftHistory=[];shiftSummarySection.classList.add('hidden');updateShiftState(true);});
+
 })();
