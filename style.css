@@ -1,5 +1,17 @@
 body { font-family: sans-serif; background: #f0f2f5; margin: 0; }
-.container { max-width: 600px; margin: 10px auto; padding: 15px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: visible; }
+.container {
+    max-width: 600px;
+    margin: 10px auto;
+    padding: 15px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    
+    /* Убираем overflow, чтобы вернуть поведение по умолчанию, 
+       и добавляем эти два свойства для решения проблемы */
+    position: relative;
+    z-index: 1;
+}
 h1, h2 { color: #333; border-bottom: 1px solid #eee; padding-bottom: 10px; }
 button { background: #1877f2; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-size: 16px; margin: 5px; }
 button:disabled { background: #ccc; cursor: not-allowed; }
