@@ -1,5 +1,19 @@
-// Ждем, пока загрузится вся структура страницы
-document.addEventListener('DOMContentLoaded', () => {
+// Ждем, пока API Яндекс.Карт будет полностью готово к работе
+ymaps.ready(init);
+
+function init() {
+    // --- Весь наш код теперь будет внутри этой функции ---
+
+    // Регистрация Service Worker для оффлайн работы
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(err => console.error('Service Worker registration failed:', err));
+    }
+
+    // --- Глобальные переменные и состояние ---
+    let zonesGeoJSON;
+    let currentTrip = [];
+    let shiftHistory = [];
+    let shiftInProgress = false;
 
     // --- Элементы DOM ---
     const newTripBtn = document.getElementById('new-trip-btn');
@@ -16,76 +30,56 @@ document.addEventListener('DOMContentLoaded', () => {
     const shiftTotalEarnings = document.getElementById('shift-total-earnings');
     const startNewShiftBtn = document.getElementById('start-new-shift-btn');
 
-    // --- Глобальные переменные и состояние ---
-    let zonesGeoJSON;
-    let currentTrip = [];
-    let shiftHistory = [];
-    let shiftInProgress = false;
-
-    // --- Главная функция инициализации ---
-    // Она будет вызвана только когда API Яндекс.Карт будет 100% готово.
-    async function init() {
-        try {
-            console.log("Yandex Maps API is ready. Initializing app...");
-
-            // 1. Загружаем наши зоны
-            const response = await fetch('/data/zones.geojson');
-            if (!response.ok) {
-                throw new Error(`Failed to load zones.geojson. Status: ${response.status}`);
-            }
-            zonesGeoJSON = await response.json();
-            console.log("Zones loaded successfully.");
-
-            // 2. Инициализируем подсказки для поля ввода
-            const suggest = new ymaps.control.SearchControl({
-    options: {
-        // Ограничиваем поиск областью на карте, чтобы подсказки были более релевантными
-        provider: 'yandex#search'
-    }
-});
-
-// ВАЖНО: Мы не добавляем этот элемент на карту, мы его просто создаем,
-// чтобы использовать его логику подсказок для нашего поля ввода.
-// Активируем его для нашего поля
-suggest.attach(document.getElementById('address-input'));
-
-            console.log("SuggestView initialized.");
-
-            // 3. Активируем интерфейс
-            updateShiftState(true);
-
-        } catch (error) {
-            console.error('Initialization failed:', error);
-            alert(`Ошибка инициализации: ${error.message}. Проверьте консоль (F12).`);
-        }
-    }
+    // --- Инициализация подсказок и загрузка зон ---
     
-    // Запускаем инициализацию через ymaps.ready. Это гарантирует, что ymaps и все его модули загружены.
-    ymaps.ready(init);
+    // Включаем подсказки для поля ввода
+    new ymaps.SuggestView('address-input');
 
-    // --- Функции ---
+    // Загружаем наши зоны
+    loadZones().catch(error => {
+        console.error('Initialization failed:', error);
+        alert('Не удалось загрузить зоны. Проверьте файл zones.geojson');
+    });
 
+    async function loadZones() {
+        const response = await fetch('/data/zones.geojson');
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        zonesGeoJSON = await response.json();
+    }
+
+    // --- Функции для расчета стоимости ---
     function getPriceForCoordinates(coords) {
+        if (!zonesGeoJSON) {
+            console.error("Зоны еще не загружены!");
+            return { price: 0, description: 'Ошибка загрузки зон' };
+        }
         const point = { type: 'Point', coordinates: coords };
         for (const feature of zonesGeoJSON.features) {
             const polygon = feature.geometry;
-            // Простая проверка для MultiPolygon и Polygon
-            if (feature.geometry.type === "Polygon" && isPointInPolygon(point, polygon.coordinates[0])) {
-                 return calculatePriceFromZoneName(feature.properties.description);
+            if (isPointInPolygon(point, polygon)) {
+                return calculatePriceFromZoneName(feature.properties.description);
             }
         }
         return { price: 0, description: 'Зона не найдена' };
     }
 
-    function isPointInPolygon(point, polygonCoords) {
+    function isPointInPolygon(point, polygon) {
         const pointCoords = point.coordinates;
+        // GeoJSON может иметь разную вложенность, обрабатываем это
+        const polygonCoords = polygon.type === 'Polygon' ? polygon.coordinates[0] : polygon.coordinates;
+        
         let isInside = false;
-        for (let i = 0, j = polygonCoords.length - 1; i < polygonCoords.length; j = i++) {
-            const xi = polygonCoords[i][0], yi = polygonCoords[i][1];
-            const xj = polygonCoords[j][0], yj = polygonCoords[j][1];
-            const intersect = ((yi > pointCoords[1]) !== (yj > pointCoords[1]))
-                && (pointCoords[0] < (xj - xi) * (pointCoords[1] - yi) / (yj - yi) + xi);
-            if (intersect) isInside = !isInside;
+        // Убедимся, что у нас есть массив для итерации
+        if (Array.isArray(polygonCoords)) {
+             for (let i = 0, j = polygonCoords.length - 1; i < polygonCoords.length; j = i++) {
+                const xi = polygonCoords[i][0], yi = polygonCoords[i][1];
+                const xj = polygonCoords[j][0], yj = polygonCoords[j][1];
+                const intersect = ((yi > pointCoords[1]) !== (yj > pointCoords[1]))
+                    && (pointCoords[0] < (xj - xi) * (pointCoords[1] - yi) / (yj - yi) + xi);
+                if (intersect) isInside = !isInside;
+            }
         }
         return isInside;
     }
@@ -104,6 +98,8 @@ suggest.attach(document.getElementById('address-input'));
         return { price: basePrice, description: `Зона (${basePrice})` };
     }
 
+
+    // --- Функции для обновления UI (без изменений) ---
     function renderCurrentTrip() {
         currentOrdersList.innerHTML = '';
         let total = 0;
@@ -130,6 +126,7 @@ suggest.attach(document.getElementById('address-input'));
                 li.textContent = `${order.address} - ${order.price} ₽`;
                 ul.appendChild(li);
             });
+
             details.appendChild(summary);
             details.appendChild(ul);
             historyList.appendChild(details);
@@ -146,7 +143,6 @@ suggest.attach(document.getElementById('address-input'));
     }
     
     // --- Обработчики событий ---
-
     newTripBtn.addEventListener('click', () => {
         currentTrip = [];
         renderCurrentTrip();
@@ -162,15 +158,19 @@ suggest.attach(document.getElementById('address-input'));
         addOrderBtn.textContent = '...';
 
         try {
-            // Используем ymaps.geocode, который теперь должен быть доступен
             const geoObject = await ymaps.geocode(address);
             const firstGeoObject = geoObject.geoObjects.get(0);
             if (!firstGeoObject) {
                 alert('Адрес не найден');
-                throw new Error('Address not found by geocoder');
+                return;
             }
             const coords = firstGeoObject.geometry.getCoordinates();
-            const { price } = getPriceForCoordinates(coords);
+            
+            // !!!!! ВАЖНОЕ ИСПРАВЛЕНИЕ: МЕНЯЕМ МЕСТАМИ КООРДИНАТЫ !!!!!
+            // Яндекс API отдает [широта, долгота], а GeoJSON ждет [долгота, широта]
+            const reversedCoords = [coords[1], coords[0]];
+            
+            const { price } = getPriceForCoordinates(reversedCoords);
             
             if (price === 0) {
                  alert('Не удалось определить стоимость для данного адреса. Возможно, он вне зоны обслуживания.');
@@ -223,6 +223,7 @@ suggest.attach(document.getElementById('address-input'));
             shiftTripsCount.textContent = shiftData.tripCount;
             shiftTotalEarnings.textContent = shiftData.totalEarnings;
             shiftSummarySection.classList.remove('hidden');
+
             historyList.innerHTML = '';
             updateShiftState(false);
 
@@ -238,8 +239,6 @@ suggest.attach(document.getElementById('address-input'));
         updateShiftState(true);
     });
 
-    // Регистрируем Service Worker для оффлайн работы
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').catch(err => console.error('Service Worker registration failed:', err));
-    }
-});
+    // --- Начальное состояние ---
+    updateShiftState(true);
+}
