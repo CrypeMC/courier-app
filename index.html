@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Курьер Лог</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+</head>
+<body>
+    <div class="container">
+        <h1>Смена</h1>
+        <div class="controls">
+            <button id="new-trip-btn">Новый рейс</button>
+            <button id="end-shift-btn" class="danger-btn" disabled>Завершить смену</button>
+        </div>
+
+        <div id="current-trip-section" class="hidden">
+            <h2>Текущий рейс</h2>
+            <div class="add-order">
+                <input type="text" id="address-input" placeholder="Введите адрес доставки">
+                <button id="add-order-btn">+</button>
+            </div>
+            <ul id="current-orders-list"></ul>
+            <div class="trip-summary">
+                <strong>Итого за рейс: <span id="trip-total">0</span> ₽</strong>
+            </div>
+            <button id="end-trip-btn">Завершить рейс</button>
+        </div>
+
+        <div id="shift-summary-section" class="hidden">
+            <h2>Смена завершена!</h2>
+            <p>Всего рейсов: <span id="shift-trips-count">0</span></p>
+            <p>Общий заработок: <span id="shift-total-earnings">0</span> ₽</p>
+            <button id="start-new-shift-btn">Начать новую смену</button>
+        </div>
+
+        <h2>История за смену</h2>
+        <div id="history-list"></div>
+    </div>
+
+    <script src="https://api-maps.yandex.ru/2.1/?apikey=7594a6f2-b91d-4043-8efc-c51a6451a514&lang=ru_RU&load=Map,Placemark,geoObject,suggest,util.bounds"></script>
+    <script src="app.js"></script>
+</body>
+</html>

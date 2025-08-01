@@ -1,0 +1,40 @@
+body { font-family: sans-serif; background: #f0f2f5; margin: 0; }
+.container { max-width: 600px; margin: 10px auto; padding: 15px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+h1, h2 { color: #333; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+button { background: #1877f2; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-size: 16px; margin: 5px; }
+button:disabled { background: #ccc; cursor: not-allowed; }
+.danger-btn { background: #e74c3c; }
+.hidden { display: none; }
+input[type="text"] { width: calc(100% - 60px); padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 16px; }
+.add-order { display: flex; margin-bottom: 15px; }
+.add-order button { width: 40px; }
+ul { list-style: none; padding: 0; }
+li { background: #f9f9f9; padding: 10px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+.trip-summary { text-align: right; margin-top: 15px; font-size: 18px; }
+#history-list details { background: #fafafa; border: 1px solid #e1e1e1; border-radius: 4px; margin-bottom: 10px; }
+#history-list summary { padding: 10px; font-weight: bold; cursor: pointer; }
+#history-list ul { margin: 0 10px 10px 10px; }```
+
+#### **`manifest.json`** (Паспорт приложения)
+```json
+{
+    "name": "Курьер Лог",
+    "short_name": "КурьерЛог",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#1877f2",
+    "description": "Приложение для учета доставок курьером.",
+    "icons": [
+        {
+            "src": "https://via.placeholder.com/192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "https://via.placeholder.com/512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}
