@@ -1,6 +1,6 @@
 ymaps.ready(init);
 
-function init() {
+async function init() {
     // --- НАША КОНСОЛЬ ДЛЯ ОТЛАДКИ ---
     const debugLog = document.getElementById('debug-log');
     const clearLogBtn = document.getElementById('clear-log-btn');
@@ -15,33 +15,45 @@ function init() {
     if (clearLogBtn) {
         clearLogBtn.addEventListener('click', () => { debugLog.innerHTML = ''; });
     }
+    logToScreen("Приложение инициализировано. ymaps.ready сработал.");
     // --- КОНЕЦ БЛОКА ОТЛАДКИ ---
 
-    logToScreen("Приложение инициализировано. ymaps.ready сработал.");
-
-    // --- УПРОЩЕННАЯ ИНИЦИАЛИЗАЦИЯ ПОДСКАЗОК ---
     try {
-        logToScreen("Пытаюсь создать SuggestView в самом простом виде...");
+        logToScreen("Определяю местоположение...");
+        const location = await ymaps.geolocation.get({
+            provider: 'browser',
+            mapStateAutoApply: true
+        });
+        const userCoords = location.geoObjects.get(0).geometry.getCoordinates();
+        logToScreen(`Местоположение получено: [${userCoords[0].toFixed(4)}, ${userCoords[1].toFixed(4)}]`);
+
+        logToScreen("Определяю город по координатам (обратное геокодирование)...");
+        const cityResult = await ymaps.geocode(userCoords);
+        const firstGeoObject = cityResult.geoObjects.get(0);
         
-        // Создаем подсказки БЕЗ КАКИХ-ЛИБО НАСТРОЕК.
-        // Это самый базовый вызов, который только возможен.
-        const suggestView = new ymaps.SuggestView('address-input');
+        // Получаем границы города для привязки подсказок
+        const userCityBounds = firstGeoObject.properties.get('boundedBy');
+        const cityName = firstGeoObject.getLocalities().length > 0 ? firstGeoObject.getLocalities()[0] : firstGeoObject.getAdministrativeAreas()[0];
+        logToScreen(`Город определен как "${cityName}". Ограничиваю поиск этой областью.`);
+
+        logToScreen("Создаю SuggestView с жесткой привязкой к городу...");
+        const suggestView = new ymaps.SuggestView('address-input', {
+            boundedBy: userCityBounds, // <-- Вот она, магия!
+            results: 5 // Ограничим до 5 результатов, для мобилки идеально
+        });
 
         logToScreen("SuggestView УСПЕШНО СОЗДАН. Теперь слежу за выбором.");
-
-        // Отслеживаем, когда пользователь выбирает адрес из списка
         suggestView.events.add('select', (e) => {
             const selectedAddress = e.get('item').value;
-            logToScreen(`Пользователь выбрал из подсказок: "${selectedAddress}"`);
-            addressInput.value = selectedAddress;
+            logToScreen(`Выбрано из подсказок: "${selectedAddress}"`);
+            document.getElementById('address-input').value = selectedAddress;
         });
 
     } catch (e) {
-        logToScreen(`КРИТИЧЕСКАЯ ОШИБКА при создании SuggestView: ${e.message}`);
-        alert("Не удалось создать компонент подсказок. Что-то пошло не так.");
+        logToScreen(`КРИТИЧЕСКАЯ ОШИБКА при инициализации с геолокацией: ${e.message}`);
+        logToScreen("Откатываюсь к простому SuggestView без привязки...");
+        new ymaps.SuggestView('address-input');
     }
-    // --- КОНЕЦ УПРОЩЕННОЙ ИНИЦИАЛИЗАЦИИ ---
-
 
     // Остальной код приложения остается здесь, чтобы кнопки работали
     let zonesGeoJSON;
@@ -61,12 +73,11 @@ function init() {
     const shiftTotalEarnings = document.getElementById('shift-total-earnings');
     const startNewShiftBtn = document.getElementById('start-new-shift-btn');
     loadZones().catch(error => { logToScreen(`Ошибка загрузки зон: ${error.message}`); });
-    
-    // Функции (без изменений)
+
     async function loadZones(){logToScreen("Начинаю загрузку файла /data/zones.geojson...");const response=await fetch('/data/zones.geojson');if(!response.ok){throw new Error(`Не удалось загрузить файл, статус: ${response.status}`);}
     zonesGeoJSON=await response.json();logToScreen(`Файл зон успешно загружен. Найдено полигонов: ${zonesGeoJSON.features.length}`);}
     function getPriceForCoordinates(coords){if(!zonesGeoJSON){logToScreen("Ошибка: Попытка расчета цены до загрузки зон!");return{price:0};}
-    const point={type:'Point',coordinates:coords};logToScreen("Начинаю проверку вхождения точки в полигоны...");for(const feature of zonesGeoJSON.features){const zoneName=feature.properties.description||'БЕЗ ИМЕНИ';logToScreen(`- Проверяю зону: "${zoneName}"`);const polygon=feature.geometry;if(isPointInPolygon(point,polygon)){logToScreen(`-- > ПОПАДАНИЕ! Точка находится внутри зоны "${zoneName}".`);return calculatePriceFromZoneName(zoneName);}}
+    const point={type:'Point',coordinates:coords};logToScreen("Начинаю проверку вхождения точки в полигоны...");for(const feature of zonesGeoJSON.features){const zoneName=feature.properties.description||'БЕЗ ИМЕНИ';const polygon=feature.geometry;if(isPointInPolygon(point,polygon)){logToScreen(`-- > ПОПАДАНИЕ! Точка находится внутри зоны "${zoneName}".`);return calculatePriceFromZoneName(zoneName);}}
     logToScreen("ПРОВЕРКА ЗАВЕРШЕНА: Точка не попала ни в одну из зон.");return{price:0};}
     function isPointInPolygon(point,polygon){const pointCoords=point.coordinates;const polygonCoords=polygon.coordinates[0];let isInside=!1;for(let i=0,j=polygonCoords.length-1;i<polygonCoords.length;j=i++){const xi=polygonCoords[i][0],yi=polygonCoords[i][1];const xj=polygonCoords[j][0],yj=polygonCoords[j][1];const intersect=((yi>pointCoords[1])!==(yj>pointCoords[1]))&&(pointCoords[0]<(xj-xi)*(pointCoords[1]-yi)/(yj-yi)+xi);if(intersect)isInside=!isInside;}
     return isInside;}
