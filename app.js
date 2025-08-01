@@ -1,7 +1,7 @@
 ymaps.ready(init);
 
 async function init() {
-    // --- НАША КОНСОЛЬ ДЛЯ ОТЛАДКИ ---
+    // --- БЛОК ОТЛАДКИ ---
     const debugLog = document.getElementById('debug-log');
     const clearLogBtn = document.getElementById('clear-log-btn');
     function logToScreen(message) {
@@ -18,62 +18,69 @@ async function init() {
     logToScreen("Приложение инициализировано. ymaps.ready сработал.");
     // --- КОНЕЦ БЛОКА ОТЛАДКИ ---
 
+    const addressInput = document.getElementById('address-input');
+    const suggestContainer = document.getElementById('my-suggest-container');
+    
+    // --- НОВАЯ ЛОГИКА ПОДСКАЗОК ---
     try {
-        logToScreen("Определяю местоположение...");
-        const location = await ymaps.geolocation.get({
-            provider: 'browser',
-            mapStateAutoApply: true
-        });
+        logToScreen("Определяю местоположение для привязки...");
+        const location = await ymaps.geolocation.get({ provider: 'browser' });
         const userCoords = location.geoObjects.get(0).geometry.getCoordinates();
-        logToScreen(`Местоположение получено: [${userCoords[0].toFixed(4)}, ${userCoords[1].toFixed(4)}]`);
-
-        logToScreen("Определяю город по координатам (обратное геокодирование)...");
         const cityResult = await ymaps.geocode(userCoords);
-        const firstGeoObject = cityResult.geoObjects.get(0);
+        const userCityBounds = cityResult.geoObjects.get(0).properties.get('boundedBy');
+        logToScreen("Местоположение определено, привязка готова.");
         
-        // Получаем границы города для привязки подсказок
-        const userCityBounds = firstGeoObject.properties.get('boundedBy');
-        const cityName = firstGeoObject.getLocalities().length > 0 ? firstGeoObject.getLocalities()[0] : firstGeoObject.getAdministrativeAreas()[0];
-        logToScreen(`Город определен как "${cityName}". Ограничиваю поиск этой областью.`);
+        addressInput.addEventListener('input', async () => {
+            const text = addressInput.value;
+            if (text.length < 3) {
+                suggestContainer.innerHTML = ''; // Очищаем, если введено мало символов
+                return;
+            }
 
-        logToScreen("Создаю SuggestView с жесткой привязкой к городу...");
-        const suggestView = new ymaps.SuggestView('address-input', {
-            boundedBy: userCityBounds, // <-- Вот она, магия!
-            results: 5 // Ограничим до 5 результатов, для мобилки идеально
+            logToScreen(`Запрашиваю подсказки для "${text}"...`);
+            try {
+                const suggestions = await ymaps.suggest(text, {
+                    boundedBy: userCityBounds,
+                    results: 5
+                });
+                
+                logToScreen(`Получено ${suggestions.length} подсказок.`);
+                renderOurOwnSuggestions(suggestions);
+
+            } catch (e) {
+                logToScreen(`Ошибка при получении подсказок: ${e.message}`);
+            }
         });
-
-        logToScreen("SuggestView УСПЕШНО СОЗДАН. Теперь слежу за выбором.");
-        suggestView.events.add('select', (e) => {
-            const selectedAddress = e.get('item').value;
-            logToScreen(`Выбрано из подсказок: "${selectedAddress}"`);
-            document.getElementById('address-input').value = selectedAddress;
-        });
-
+        
     } catch (e) {
-        logToScreen(`КРИТИЧЕСКАЯ ОШИБКА при инициализации с геолокацией: ${e.message}`);
-        logToScreen("Откатываюсь к простому SuggestView без привязки...");
-        new ymaps.SuggestView('address-input');
+        logToScreen(`КРИТИЧЕСКАЯ ОШИБКА геолокации: ${e.message}`);
     }
 
-    // Остальной код приложения остается здесь, чтобы кнопки работали
-    let zonesGeoJSON;
-    let currentTrip = [];
-    let shiftHistory = [];
-    const newTripBtn = document.getElementById('new-trip-btn');
-    const endShiftBtn = document.getElementById('end-shift-btn');
-    const currentTripSection = document.getElementById('current-trip-section');
-    const addressInput = document.getElementById('address-input');
-    const addOrderBtn = document.getElementById('add-order-btn');
-    const currentOrdersList = document.getElementById('current-orders-list');
-    const tripTotalSpan = document.getElementById('trip-total');
-    const endTripBtn = document.getElementById('end-trip-btn');
-    const historyList = document.getElementById('history-list');
-    const shiftSummarySection = document.getElementById('shift-summary-section');
-    const shiftTripsCount = document.getElementById('shift-trips-count');
-    const shiftTotalEarnings = document.getElementById('shift-total-earnings');
-    const startNewShiftBtn = document.getElementById('start-new-shift-btn');
-    loadZones().catch(error => { logToScreen(`Ошибка загрузки зон: ${error.message}`); });
+    function renderOurOwnSuggestions(items) {
+        suggestContainer.innerHTML = ''; // Очищаем старые
+        if (items.length === 0) return;
 
+        const list = document.createElement('div');
+        list.id = 'my-suggest-list';
+
+        items.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'my-suggest-item';
+            div.textContent = item.displayName;
+            div.addEventListener('click', () => {
+                logToScreen(`Выбрано из нашего списка: "${item.value}"`);
+                addressInput.value = item.value;
+                suggestContainer.innerHTML = ''; // Скрываем список после выбора
+            });
+            list.appendChild(div);
+        });
+        suggestContainer.appendChild(list);
+    }
+    // --- КОНЕЦ НОВОЙ ЛОГИКИ ---
+
+    // Остальной код приложения (без изменений)
+    let zonesGeoJSON; let currentTrip = []; let shiftHistory = [];
+    const newTripBtn=document.getElementById('new-trip-btn'); const endShiftBtn=document.getElementById('end-shift-btn'); const currentTripSection=document.getElementById('current-trip-section'); const addOrderBtn=document.getElementById('add-order-btn'); const currentOrdersList=document.getElementById('current-orders-list'); const tripTotalSpan=document.getElementById('trip-total'); const endTripBtn=document.getElementById('end-trip-btn'); const historyList=document.getElementById('history-list'); const shiftSummarySection=document.getElementById('shift-summary-section'); const shiftTripsCount=document.getElementById('shift-trips-count'); const shiftTotalEarnings=document.getElementById('shift-total-earnings'); const startNewShiftBtn=document.getElementById('start-new-shift-btn'); loadZones().catch(error=>{logToScreen(`Ошибка загрузки зон: ${error.message}`);});
     async function loadZones(){logToScreen("Начинаю загрузку файла /data/zones.geojson...");const response=await fetch('/data/zones.geojson');if(!response.ok){throw new Error(`Не удалось загрузить файл, статус: ${response.status}`);}
     zonesGeoJSON=await response.json();logToScreen(`Файл зон успешно загружен. Найдено полигонов: ${zonesGeoJSON.features.length}`);}
     function getPriceForCoordinates(coords){if(!zonesGeoJSON){logToScreen("Ошибка: Попытка расчета цены до загрузки зон!");return{price:0};}
@@ -83,7 +90,7 @@ async function init() {
     return isInside;}
     function calculatePriceFromZoneName(zoneName){if(!zoneName)return{price:0};const parts=zoneName.split('_');if(parts[0]!=='zone')return{price:0};const basePrice=parseInt(parts[1],10);if(parts.length>2&&parts[2]==='plus'){const additionalPrice=parseInt(parts[3],10);return{price:basePrice+additionalPrice};}
     return{price:basePrice};}
-    addOrderBtn.addEventListener('click', async () => {const address = addressInput.value.trim();if (!address) return;logToScreen(`------------------\nНачинаю поиск адреса: "${address}"`);addOrderBtn.disabled = true; addOrderBtn.textContent = '...';try {const geoResult = await ymaps.geocode(address);const firstGeoObject = geoResult.geoObjects.get(0);if (!firstGeoObject) {logToScreen(`ОШИБКА: Яндекс.Карты не смогли найти адрес "${address}"`);alert('Адрес не найден');return;}const coords = firstGeoObject.geometry.getCoordinates();logToScreen(`Яндекс нашел координаты: [${coords[0].toFixed(6)}, ${coords[1].toFixed(6)}] (широта, долгота)`);const reversedCoords = [coords[1], coords[0]];logToScreen(`Меняю местами для проверки: [${reversedCoords[0].toFixed(6)}, ${reversedCoords[1].toFixed(6)}] (долгота, широта)`);const { price } = getPriceForCoordinates(reversedCoords);if (price === 0) {logToScreen("Итог: цена 0. Адрес считается вне зоны обслуживания.");alert('Не удалось определить стоимость для данного адреса. Возможно, он вне зоны обслуживания.');return;}logToScreen(`Итог: цена ${price} ₽. Добавляю заказ.`);currentTrip.push({ address, price });renderCurrentTrip();addressInput.value = '';} catch (error) {logToScreen(`КРИТИЧЕСКАЯ ОШИБКА геокодирования: ${error.message}`);alert('Произошла ошибка при поиске адреса.');} finally {addOrderBtn.disabled = false; addOrderBtn.textContent = '+';}});
+    addOrderBtn.addEventListener('click', async () => {const address = addressInput.value.trim();if (!address) return;logToScreen(`------------------\nНачинаю поиск адреса: "${address}"`);suggestContainer.innerHTML = '';addOrderBtn.disabled = true; addOrderBtn.textContent = '...';try {const geoResult = await ymaps.geocode(address);const firstGeoObject = geoResult.geoObjects.get(0);if (!firstGeoObject) {logToScreen(`ОШИБКА: Яндекс.Карты не смогли найти адрес "${address}"`);alert('Адрес не найден');return;}const coords = firstGeoObject.geometry.getCoordinates();logToScreen(`Яндекс нашел координаты: [${coords[0].toFixed(6)}, ${coords[1].toFixed(6)}] (широта, долгота)`);const reversedCoords = [coords[1], coords[0]];logToScreen(`Меняю местами для проверки: [${reversedCoords[0].toFixed(6)}, ${reversedCoords[1].toFixed(6)}] (долгота, широта)`);const { price } = getPriceForCoordinates(reversedCoords);if (price === 0) {logToScreen("Итог: цена 0. Адрес считается вне зоны обслуживания.");alert('Не удалось определить стоимость для данного адреса. Возможно, он вне зоны обслуживания.');return;}logToScreen(`Итог: цена ${price} ₽. Добавляю заказ.`);currentTrip.push({ address, price });renderCurrentTrip();addressInput.value = '';} catch (error) {logToScreen(`КРИТИЧЕСКАЯ ОШИБКА геокодирования: ${error.message}`);alert('Произошла ошибка при поиске адреса.');} finally {addOrderBtn.disabled = false; addOrderBtn.textContent = '+';}});
     function renderCurrentTrip(){currentOrdersList.innerHTML='';let total=0;currentTrip.forEach(order=>{const li=document.createElement('li');li.textContent=`${order.address} - ${order.price} ₽`;total+=order.price;currentOrdersList.appendChild(li);});tripTotalSpan.textContent=total;}
     function renderHistory(){historyList.innerHTML='';shiftHistory.forEach((trip,index)=>{const details=document.createElement('details');const summary=document.createElement('summary');const tripTotal=trip.orders.reduce((sum,order)=>sum+order.price,0);summary.textContent=`Рейс #${shiftHistory.length-index} - ${tripTotal} ₽`;const ul=document.createElement('ul');trip.orders.forEach(order=>{const li=document.createElement('li');li.textContent=`${order.address} - ${order.price} ₽`;ul.appendChild(li);});details.appendChild(summary);details.appendChild(ul);historyList.appendChild(details);});}
     function updateShiftState(isStarting){newTripBtn.disabled=!isStarting;endShiftBtn.disabled=!isStarting;if(!isStarting){currentTripSection.classList.add('hidden');}}
