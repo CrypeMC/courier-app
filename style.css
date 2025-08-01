@@ -81,3 +81,34 @@ li { background: #f9f9f9; padding: 10px; border: 1px solid #ddd; border-radius: 
     background-color: yellow !important;  /* Делаем фон ярко-желтым, чтобы заметить */
     border: 3px solid red !important;     /* Добавляем жирную красную рамку */
 }
+
+/* Стили для нашего собственного контейнера подсказок */
+#my-suggest-container {
+    position: relative; /* Чтобы z-index работал внутри этого блока */
+}
+
+#my-suggest-list {
+    position: absolute;
+    width: 100%;
+    background-color: white;
+    border: 1px solid #ccc;
+    border-top: none;
+    z-index: 1000; /* Поверх всего */
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    border-radius: 0 0 6px 6px;
+    margin-top: -2px; /* Прижимаем к инпуту */
+}
+
+.my-suggest-item {
+    padding: 10px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+}
+
+.my-suggest-item:last-child {
+    border-bottom: none;
+}
+
+.my-suggest-item:hover {
+    background-color: #f0f2f5;
+}    
