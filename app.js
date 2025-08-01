@@ -5,7 +5,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Глобальные переменные и состояние ---
-    let ymaps;
     let zonesGeoJSON;
     let currentTrip = [];
     let shiftHistory = [];
@@ -27,29 +26,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const startNewShiftBtn = document.getElementById('start-new-shift-btn');
 
     // --- Инициализация ---
-    if (window.ymaps) {
-    ymapsReady();
-} else {
-    // Если скрипт карт почему-то не загрузился (например, блокировщик рекламы)
-    // мы ждем загрузки страницы и пробуем еще раз.
-    window.addEventListener('load', ymapsReady);
+
+    // Эта функция будет вызвана АВТОМАТИЧЕСКИ после загрузки скрипта Яндекс.Карт
+
+async function onYandexMapsReady() {
+    try {
+        // API уже загружено, ymaps гарантированно существует.
+        // Загружаем наши гео-зоны
+        await loadZones();
+        
+        // Инициализируем подсказки для поля ввода
+        new ymaps.SuggestView('address-input');
+        
+        console.log("Yandex Maps API and zones are ready!"); // Добавим лог для отладки
+
+    } catch (error) {
+        console.error('Initialization failed inside onYandexMapsReady:', error);
+        alert('Не удалось загрузить зоны или API карт. Проверьте консоль на ошибки.');
+    }
 }
 
-    async function ymapsReady() {
-        try {
-            // Сначала загружаем наши зоны
-            await loadZones();
-            // Теперь ждем, пока API Яндекса будет готово
-            await ymaps.ready();
-            
-            // И только теперь, когда мы уверены, что ymaps существует и готов, мы его используем
-            new ymaps.SuggestView('address-input');
-            
-        } catch (error) {
-            console.error('Initialization failed:', error);
-            alert('Не удалось загрузить зоны или API карт. Проверьте консоль на ошибки.');
-        }
-    }
+// Добавим функцию-обработчик ошибок для полноты картины
+function onYandexMapsError(error) {
+    console.error('Yandex Maps script loading error:', error);
+    alert('Не удалось загрузить скрипт Яндекс.Карт. Проверьте интернет-соединение или работу блокировщиков рекламы.');
+}
 
     async function loadZones() {
         const response = await fetch('/data/zones.geojson');
