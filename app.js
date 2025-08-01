@@ -1,54 +1,33 @@
 // Этот лог сработает ВСЕГДА, как только скрипт загрузится.
 console.log('app.js СТАРТОВАЛ');
 
-// Обернем все в анонимную функцию, чтобы не засорять глобальную область.
 (function() {
     // --- БЛОК ОТЛАДКИ ---
     const debugLog = document.getElementById('debug-log');
     const clearLogBtn = document.getElementById('clear-log-btn');
     const copyLogBtn = document.getElementById('copy-log-btn');
-
-    function logToScreen(message) {
-        if (debugLog) {
-            const time = new Date().toLocaleTimeString();
-            debugLog.innerHTML += `[${time}] ${message}\n`;
-            debugLog.scrollTop = debugLog.scrollHeight;
-        }
-        console.log(message);
-    }
-
+    function logToScreen(message) { if (debugLog) { const time = new Date().toLocaleTimeString(); debugLog.innerHTML += `[${time}] ${message}\n`; debugLog.scrollTop = debugLog.scrollHeight; } console.log(message); }
     logToScreen('app.js успешно загружен и готов к работе.');
-
-    if (clearLogBtn) {
-        clearLogBtn.addEventListener('click', () => { debugLog.innerHTML = ''; });
-    }
-    if (copyLogBtn) {
-        copyLogBtn.addEventListener('click', () => {
-            navigator.clipboard.writeText(debugLog.innerText)
-                .then(() => alert('Лог скопирован в буфер обмена!'))
-                .catch(err => alert('Ошибка копирования: ' + err));
-        });
-    }
+    if (clearLogBtn) { clearLogBtn.addEventListener('click', () => { debugLog.innerHTML = ''; }); }
+    if (copyLogBtn) { copyLogBtn.addEventListener('click', () => { navigator.clipboard.writeText(debugLog.innerText).then(() => alert('Лог скопирован!')).catch(err => alert('Ошибка копирования: ' + err)); }); }
     // --- КОНЕЦ БЛОКА ОТЛАДКИ ---
+    
+    // ПЕРЕМЕННЫЕ, КОТОРЫЕ ВИДНЫ ВСЕМ ФУНКЦИЯМ ВНУТРИ
+    let userCoords = null;
+    const addressInput = document.getElementById('address-input');
+    const suggestContainer = document.getElementById('my-suggest-container'); // ГЛАВНОЕ ИЗМЕНЕНИЕ: мы нашли наш холст здесь
 
-    // ГЛАВНАЯ ПРОВЕРКА: существует ли вообще объект ymaps?
     if (typeof ymaps === 'undefined') {
-        logToScreen('КРИТИЧЕСКАЯ ОШИБКА: Объект `ymaps` не найден. Проверьте строку подключения API в index.html!');
-        alert('Не удалось загрузить API Яндекс.Карт. Проверьте интернет или настройки.');
-        return; // Прерываем выполнение всего скрипта
+        logToScreen('КРИТИЧЕСКАЯ ОШИБКА: `ymaps` не найден. Проверьте index.html!');
+        return;
     }
 
-    // Если мы дошли сюда, значит ymaps существует. Теперь можно вызывать ready.
     ymaps.ready(init);
 
     async function init() {
         try {
             logToScreen("Приложение инициализировано. ymaps.ready сработал.");
             
-            const addressInput = document.getElementById('address-input');
-            const suggestContainer = document.getElementById('my-suggest-container');
-            let userCoords = null;
-
             logToScreen("Определяю местоположение...");
             const location = await ymaps.geolocation.get({ provider: 'browser' });
             userCoords = location.geoObjects.get(0).geometry.getCoordinates();
@@ -63,11 +42,9 @@ console.log('app.js СТАРТОВАЛ');
                 try {
                     const response = await fetch(`/.netlify/functions/api/suggest?text=${text}&lat=${userCoords[0]}&lon=${userCoords[1]}`);
                     const data = await response.json();
-                    if (!response.ok) {
-                        throw new Error(data.error || `Сервер вернул статус ${response.status}`);
-                    }
+                    if (!response.ok) { throw new Error(data.error || `Сервер вернул статус ${response.status}`); }
                     logToScreen(`Получено ${data.length} подсказок от нашего сервера.`);
-                    renderOurOwnSuggestions(data);
+                    renderOurOwnSuggestions(data); // Теперь эта функция увидит suggestContainer
                 } catch (e) {
                     logToScreen(`ОШИБКА при получении подсказок: ${e.message}`);
                 }
@@ -75,8 +52,6 @@ console.log('app.js СТАРТОВАЛ');
         } catch (e) {
             logToScreen(`КРИТИЧЕСКАЯ ОШИБКА в функции init(): ${e.message}`);
         }
-        
-        // Загрузка зон и активация кнопок теперь тоже внутри try-catch
         loadZones().catch(error => { logToScreen(`Ошибка загрузки зон: ${error.message}`); });
         updateShiftState(true);
     }
@@ -120,5 +95,4 @@ console.log('app.js СТАРТОВАЛ');
     try{const response=await fetch('/.netlify/functions/api',{method:'POST',body:JSON.stringify(shiftData)});if(!response.ok)throw new Error('Failed to save shift');
     shiftTripsCount.textContent=shiftData.tripCount;shiftTotalEarnings.textContent=shiftData.totalEarnings;shiftSummarySection.classList.remove('hidden');historyList.innerHTML='';updateShiftState(false);}catch(error){alert('Не удалось сохранить смену.');}});
     startNewShiftBtn.addEventListener('click',()=>{shiftHistory=[];shiftSummarySection.classList.add('hidden');updateShiftState(true);});
-
-})(); // Немедленно вызываем нашу главную функцию
+})();
