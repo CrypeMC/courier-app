@@ -1,23 +1,14 @@
 {
   "name": "courier-app",
   "version": "1.0.0",
-  "description": "",
+  "description": "Courier helper app",
   "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/crypemc/courier-app.git"
-  },
-  "keywords": [],
   "author": "",
   "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/crypemc/courier-app/issues"
-  },
-  "homepage": "https://github.com/crypemc/courier-app#readme",
   "dependencies": {
-    "mongodb": "^6.18.0"
+    "node-fetch": "^2.6.7"
   }
 }
