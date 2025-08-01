@@ -8,53 +8,59 @@
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
-    <div class="container">
-        <h1>Смена</h1>
-        <div class="controls">
-            <button id="new-trip-btn">Новый рейс</button>
-            <button id="end-shift-btn" class="danger-btn" disabled>Завершить смену</button>
+
+    <!-- НАШ НОВЫЙ СТАРТОВЫЙ ЭКРАН -->
+    <div id="start-shift-screen">
+        <div class="container">
+            <h1>Смена закрыта</h1>
+            <button id="open-shift-btn">Открыть новую смену</button>
         </div>
-
-        <div id="current-trip-section" class="hidden">
-            <h2>Текущий рейс</h2>
-            <div class="add-order">
-    <input type="text" id="address-input" placeholder="Введите адрес доставки" autocomplete="off">
-    <button id="add-order-btn">+</button>
-</div>
-<div id="my-suggest-container"></div> <!-- ВОТ ЭТОТ БЛОК МЫ ДОБАВИЛИ -->
-            <ul id="current-orders-list"></ul>
-            <div class="trip-summary">
-                <strong>Итого за рейс: <span id="trip-total">0</span> ₽</strong>
-            </div>
-            <button id="end-trip-btn">Завершить рейс</button>
-        </div>
-
-        <div id="shift-summary-section" class="hidden">
-            <h2>Смена завершена!</h2>
-            <p>Всего рейсов: <span id="shift-trips-count">0</span></p>
-            <p>Общий заработок: <span id="shift-total-earnings">0</span> ₽</p>
-            <button id="start-new-shift-btn">Начать новую смену</button>
-        </div>
-
-        <h2>История за смену</h2>
-        <div id="history-list"></div>
-
-        <!-- НАЧАЛО БЛОКА ОТЛАДКИ -->
-        <details id="debug-container">
-        <summary>Показать/скрыть окно отладки</summary>
-        <button id="clear-log-btn">Очистить лог</button>
-        <button id="copy-log-btn">Копировать лог</button>
-        <pre id="debug-log"></pre>
-        </details>
-        <!-- КОНЕЦ БЛОКА ОТЛАДКИ -->
     </div>
 
-    <!-- ПРАВИЛЬНОЕ ПОДКЛЮЧЕНИЕ СКРИПТОВ -->
-    <!-- Сначала загружается Яндекс API -->
-    <script src="https://api-maps.yandex.ru/2.1/?apikey=7594a6f2-b91d-4043-8efc-c51a6451a514&lang=ru_RU&load=geolocation,geocode,suggest"></script>
-    
-    <!-- И ТОЛЬКО ПОТОМ наш скрипт, который будет его использовать -->
-    <script src="app.js"></script>
+    <!-- ОСНОВНОЕ ПРИЛОЖЕНИЕ (будет скрыто вначале) -->
+    <div id="main-app" class="hidden">
+        <div class="container">
+            <h1>Смена</h1>
+            <div class="controls">
+                <button id="new-trip-btn">Новый рейс</button>
+                <button id="end-shift-btn" class="danger-btn">Завершить смену</button>
+            </div>
 
+            <div id="current-trip-section" class="hidden">
+                <h2>Текущий рейс</h2>
+                <div class="add-order">
+                    <input type="text" id="address-input" placeholder="Введите адрес доставки" autocomplete="off">
+                    <button id="add-order-btn">+</button>
+                </div>
+                <div id="my-suggest-container"></div>
+                <ul id="current-orders-list"></ul>
+                <div class="trip-summary">
+                    <strong>Итого за рейс: <span id="trip-total">0</span> ₽</strong>
+                </div>
+                <button id="end-trip-btn">Завершить рейс</button>
+            </div>
+
+            <div id="shift-summary-section" class="hidden">
+                <h2>Смена завершена!</h2>
+                <p>Всего рейсов: <span id="shift-trips-count">0</span></p>
+                <p>Общий заработок: <span id="shift-total-earnings">0</span> ₽</p>
+                <!-- Эта кнопка теперь открывает стартовый экран, а не новую смену -->
+                <button id="go-to-start-screen-btn">Ок, на главный экран</button>
+            </div>
+
+            <h2>История за смену</h2>
+            <div id="history-list"></div>
+
+            <details id="debug-container">
+                <summary>Показать/скрыть окно отладки</summary>
+                <button id="clear-log-btn">Очистить лог</button>
+                <button id="copy-log-btn">Копировать лог</button>
+                <pre id="debug-log"></pre>
+            </details>
+        </div>
+    </div>
+
+    <script src="https://api-maps.yandex.ru/2.1/?apikey=67c02755-d347-4602-94f5-0470da39c1d1&lang=ru_RU&load=geolocation,geocode,suggest"></script>
+    <script src="app.js"></script>
 </body>
 </html>
