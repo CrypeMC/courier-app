@@ -21,8 +21,10 @@
     if(debugLog) debugLog.innerHTML = logContent;
     function logToScreen(message) { 
         if (debugLog) { 
-            const time = new Date().toLocaleTimeString(); const newLog = `[${time}] ${message}\n`;
-            debugLog.innerHTML += newLog; logContent += newLog;
+            const time = new Date().toLocaleTimeString(); 
+            const newLog = `[${time}] ${message}\n`;
+            debugLog.innerHTML += newLog; 
+            logContent += newLog;
             localStorage.setItem('courierAppLog', logContent);
             debugLog.scrollTop = debugLog.scrollHeight; 
         } 
@@ -58,9 +60,7 @@
         const screenToShow = document.getElementById(screenId);
         if (screenToShow) {
             screenToShow.classList.remove('hidden');
-            if (screenId !== 'auth-screen' && screenId !== 'update-name-screen') {
-                localStorage.setItem('lastActiveScreen', screenId);
-            }
+            if (screenId !== 'auth-screen' && screenId !== 'update-name-screen') localStorage.setItem('lastActiveScreen', screenId);
         }
     }
 
@@ -107,6 +107,7 @@
         localStorage.removeItem('courierUserName');
         localStorage.removeItem('lastActiveScreen');
         localStorage.removeItem('shiftInProgress');
+        sessionStorage.removeItem('splashShown'); // <-- Важно!
         showScreen('auth-screen');
         logToScreen('Пользователь вышел. Все локальные данные очищены.');
     });
@@ -371,12 +372,20 @@
         }
     }
 
-    // Показываем основной контейнер после задержки
-    setTimeout(() => {
-        splashScreen.classList.add('hidden');
+    // ЛОГИКА СПЛЭШ-СКРИНА
+    if (sessionStorage.getItem('splashShown')) {
+        splashScreen.style.display = 'none';
         appContainer.classList.remove('hidden');
-        logToScreen('Загрузка завершена. Инициализация приложения...');
+        logToScreen('Пропускаю сплэш-скрин (обновление страницы).');
         initializeApp();
-    }, 3000); // 3 секунды
+    } else {
+        setTimeout(() => {
+            splashScreen.classList.add('hidden');
+            appContainer.classList.remove('hidden');
+            sessionStorage.setItem('splashShown', 'true');
+            logToScreen('Загрузка завершена. Инициализация приложения...');
+            initializeApp();
+        }, 3000); // 3 секунды
+    }
 
 })();
