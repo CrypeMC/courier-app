@@ -7,7 +7,6 @@ const mongoUri = process.env.MONGODB_URI;
 const suggestApiKey = process.env.YANDEX_SUGGEST_API_KEY;
 const jwtSecret = process.env.JWT_SECRET;
 
-// Используем один клиент для всех вызовов функции
 const client = new MongoClient(mongoUri);
 
 async function handler(event) {
@@ -18,15 +17,11 @@ async function handler(event) {
         const db = client.db('courierApp');
         const usersCollection = db.collection('users');
 
-        // --- МАРШРУТИЗАТОР ЗАПРОСОВ ---
-        
         if (path.startsWith('/register') && event.httpMethod === 'POST') {
             const { name, email, password } = JSON.parse(event.body);
             if (!name || !email || !password) throw new Error('Имя, Email и пароль обязательны');
-
             const existingUser = await usersCollection.findOne({ email: email.toLowerCase() });
             if (existingUser) throw new Error('Пользователь с таким email уже существует');
-
             const hashedPassword = await bcrypt.hash(password, 10);
             await usersCollection.insertOne({ name, email: email.toLowerCase(), password: hashedPassword });
             return { statusCode: 201, body: JSON.stringify({ message: 'Пользователь успешно зарегистрирован' }) };
@@ -36,11 +31,8 @@ async function handler(event) {
             const { email, password } = JSON.parse(event.body);
             const user = await usersCollection.findOne({ email: email.toLowerCase() });
             if (!user) throw new Error('Неверный email или пароль');
-
             const isMatch = await bcrypt.compare(password, user.password);
             if (!isMatch) throw new Error('Неверный email или пароль');
-            
-            // ГЛАВНОЕ ИЗМЕНЕНИЕ: мы используем user.name || '' для обратной совместимости
             const token = jwt.sign({ userId: user._id, email: user.email, name: user.name || '' }, jwtSecret, { expiresIn: '30d' });
             return { statusCode: 200, body: JSON.stringify({ token, email: user.email, name: user.name || '' }) };
         }
@@ -55,22 +47,16 @@ async function handler(event) {
             return { statusCode: 200, body: JSON.stringify(data.results || []) };
         }
 
-        // --- ВСЕ ОСТАЛЬНЫЕ ЗАПРОСЫ ТРЕБУЮТ АВТОРИЗАЦИИ ---
         const authHeader = event.headers.authorization;
         if (!authHeader) throw new Error('Требуется авторизация');
         const token = authHeader.split(' ')[1];
         const decoded = jwt.verify(token, jwtSecret);
         const userId = decoded.userId;
 
-        // НОВЫЙ МАРШРУТ для обновления имени
         if (path.startsWith('/update-name') && event.httpMethod === 'POST') {
             const { name } = JSON.parse(event.body);
             if (!name) throw new Error('Имя не может быть пустым');
-            
-            await usersCollection.updateOne(
-                { _id: new ObjectId(userId) },
-                { $set: { name: name } }
-            );
+            await usersCollection.updateOne({ _id: new ObjectId(userId) }, { $set: { name: name } });
             return { statusCode: 200, body: JSON.stringify({ message: 'Имя обновлено' }) };
         }
 
@@ -86,6 +72,12 @@ async function handler(event) {
         if (path.startsWith('/shifts') && event.httpMethod === 'GET') {
             const userShifts = await shiftsCollection.find({ userId: new ObjectId(userId) }).sort({ date: -1 }).toArray();
             return { statusCode: 200, body: JSON.stringify(userShifts) };
+        }
+
+        // НОВЫЙ МАРШРУТ для удаления истории
+        if (path.startsWith('/shifts') && event.httpMethod === 'DELETE') {
+            await shiftsCollection.deleteMany({ userId: new ObjectId(userId) });
+            return { statusCode: 200, body: JSON.stringify({ message: 'История очищена' }) };
         }
 
         throw new Error('Неверный маршрут или метод');
