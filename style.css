@@ -28,9 +28,23 @@ li { background: #f9f9f9; padding: 10px; border: 1px solid #ddd; border-radius: 
 
 /* Новые стили */
 .form-link { display: block; text-align: center; margin-top: 15px; cursor: pointer; color: #1877f2; }
+
+/* --- ИСПРАВЛЕННЫЕ СТИЛИ ДЛЯ ОТЛАДКИ --- */
 #debug-container { margin-top: 20px; }
 #debug-container summary { cursor: pointer; font-size: 14px; color: #666; }
 #debug-container button { width: auto; font-size: 12px; padding: 5px 10px; margin: 5px; }
+#debug-log {
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+    font-family: monospace;
+    padding: 10px;
+    border-radius: 4px;
+    max-height: 300px; /* Ограничиваем высоту */
+    overflow-y: scroll; /* Добавляем вертикальную прокрутку */
+    white-space: pre-wrap; /* Переносим длинные строки */
+    word-break: break-all; /* Ломаем слова, если они не влезают */
+}
+/* --- КОНЕЦ СТИЛЕЙ ОТЛАДКИ --- */
 
 /* Стили для нашего собственного контейнера подсказок */
 #my-suggest-container { position: relative; }
