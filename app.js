@@ -15,11 +15,13 @@
     const addressInput = document.getElementById('address-input'), suggestContainer = document.getElementById('my-suggest-container'), newTripBtn = document.getElementById('new-trip-btn'), endShiftBtn = document.getElementById('end-shift-btn'), currentTripSection = document.getElementById('current-trip-section'), addOrderBtn = document.getElementById('add-order-btn'), currentOrdersList = document.getElementById('current-orders-list'), tripTotalSpan = document.getElementById('trip-total'), endTripBtn = document.getElementById('end-trip-btn');
     const shiftSummarySection = document.getElementById('shift-summary-section'), shiftTripsCount = document.getElementById('shift-trips-count'), shiftTotalEarnings = document.getElementById('shift-total-earnings'), goToStartScreenBtn = document.getElementById('go-to-start-screen-btn');
     const fullHistoryList = document.getElementById('full-history-list'), backToStartScreenBtn = document.getElementById('back-to-start-screen-btn');
+    const historyList=document.getElementById('history-list');
 
     // --- ПЕРЕМЕННЫЕ СОСТОЯНИЯ ---
     let authToken = localStorage.getItem('courierAuthToken');
     let userEmail = localStorage.getItem('courierUserEmail');
     let userCoords = null, zonesGeoJSON, currentTrip = [], shiftHistory = [];
+    let mapsInitialized = false;
 
     // --- УПРАВЛЕНИЕ ЭКРАНАМИ ---
     function showScreen(screenId) { screens.forEach(s => s.classList.add('hidden')); document.getElementById(screenId)?.classList.remove('hidden'); }
@@ -35,7 +37,6 @@
         options.headers = { ...defaultHeaders, ...options.headers };
         const response = await fetch(`/.netlify/functions/api${endpoint}`, options);
         if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.error || 'Неизвестная ошибка сервера'); }
-        // Если ответ пустой (как при 201 Created), не пытаемся парсить JSON
         if (response.status === 201 || response.status === 204) return null;
         return response.json();
     }
@@ -60,7 +61,7 @@
         authToken = null; userEmail = null;
         localStorage.removeItem('courierAuthToken'); localStorage.removeItem('courierUserEmail');
         showScreen('auth-screen');
-        logToScreen('Пользователь вышел из системы. Данные смены сохранены локально.');
+        logToScreen('Пользователь вышел. Данные смены сохранены локально.');
     });
 
     // --- ЛОКАЛЬНОЕ ХРАНИЛИЩЕ ---
@@ -73,12 +74,10 @@
         if (!userEmail) return;
         const savedState = localStorage.getItem(`courierAppState_${userEmail}`);
         if (savedState) {
-            logToScreen(`Найдено состояние для ${userEmail}. Загружаю...`);
+            logToScreen(`Найдено состояние для ${userEmail}.`);
             const state = JSON.parse(savedState);
             currentTrip = state.currentTrip || [];
             shiftHistory = state.shiftHistory || [];
-        } else {
-            logToScreen(`Сохраненное состояние для ${userEmail} не найдено.`);
         }
     }
     function clearLocalShiftData() {
@@ -87,9 +86,11 @@
 
     // --- ОСНОВНАЯ ЛОГИКА ПРИЛОЖЕНИЯ ---
     function initMapsAndLogic() {
+        if (mapsInitialized) { logToScreen("Карты уже инициализированы."); return; }
         if (typeof ymaps === 'undefined') { logToScreen('ОШИБКА: `ymaps` не найден.'); return; }
         ymaps.ready(async () => {
             logToScreen("API Карт готово.");
+            mapsInitialized = true;
             try {
                 await loadZones();
                 const location = await ymaps.geolocation.get({ provider: 'browser' });
@@ -97,7 +98,6 @@
                 logToScreen(`Местоположение определено.`);
             } catch (e) {
                 logToScreen(`Ошибка геолокации или загрузки зон: ${e.message}`);
-                // Даже если ошибка, приложение продолжит работать, но подсказки могут быть неточными
             }
         });
     }
@@ -121,21 +121,14 @@
         items.forEach(item => {
             const div = document.createElement('div'); div.className = 'my-suggest-item';
             div.textContent = item.address.formatted_address;
-            div.addEventListener('click', () => {
-                addressInput.value = item.address.formatted_address;
-                suggestContainer.innerHTML = '';
-            });
+            div.addEventListener('click', () => { addressInput.value = item.address.formatted_address; suggestContainer.innerHTML = ''; });
             list.appendChild(div);
         });
         suggestContainer.appendChild(list);
     }
-    function getPriceForCoordinates(coords){if(!zonesGeoJSON){return{price:0};}
-    const point={type:'Point',coordinates:coords};for(const feature of zonesGeoJSON.features){const zoneName=feature.properties.description||'БЕЗ ИМЕНИ';const polygon=feature.geometry;if(isPointInPolygon(point,polygon)){return calculatePriceFromZoneName(zoneName);}}
-    return{price:0};}
-    function isPointInPolygon(point,polygon){const pointCoords=point.coordinates;const polygonCoords=polygon.coordinates[0];let isInside=!1;for(let i=0,j=polygonCoords.length-1;i<polygonCoords.length;j=i++){const xi=polygonCoords[i][0],yi=polygonCoords[i][1];const xj=polygonCoords[j][0],yj=polygonCoords[j][1];const intersect=((yi>pointCoords[1])!==(yj>pointCoords[1]))&&(pointCoords[0]<(xj-xi)*(pointCoords[1]-yi)/(yj-yi)+xi);if(intersect)isInside=!isInside;}
-    return isInside;}
-    function calculatePriceFromZoneName(zoneName){if(!zoneName)return{price:0};const parts=zoneName.split('_');if(parts[0]!=='zone')return{price:0};const basePrice=parseInt(parts[1],10);if(parts.length>2&&parts[2]==='plus'){const additionalPrice=parseInt(parts[3],10);return{price:basePrice+additionalPrice};}
-    return{price:basePrice};}
+    function getPriceForCoordinates(coords){if(!zonesGeoJSON){return{price:0};} const point={type:'Point',coordinates:coords};for(const feature of zonesGeoJSON.features){const zoneName=feature.properties.description||'БЕЗ ИМЕНИ';const polygon=feature.geometry;if(isPointInPolygon(point,polygon)){return calculatePriceFromZoneName(zoneName);}} return{price:0};}
+    function isPointInPolygon(point,polygon){const pointCoords=point.coordinates;const polygonCoords=polygon.coordinates[0];let isInside=!1;for(let i=0,j=polygonCoords.length-1;i<polygonCoords.length;j=i++){const xi=polygonCoords[i][0],yi=polygonCoords[i][1];const xj=polygonCoords[j][0],yj=polygonCoords[j][1];const intersect=((yi>pointCoords[1])!==(yj>pointCoords[1]))&&(pointCoords[0]<(xj-xi)*(pointCoords[1]-yi)/(yj-yi)+xi);if(intersect)isInside=!isInside;} return isInside;}
+    function calculatePriceFromZoneName(zoneName){if(!zoneName)return{price:0};const parts=zoneName.split('_');if(parts[0]!=='zone')return{price:0};const basePrice=parseInt(parts[1],10);if(parts.length>2&&parts[2]==='plus'){const additionalPrice=parseInt(parts[3],10);return{price:basePrice+additionalPrice};} return{price:basePrice};}
     function renderCurrentTrip(){currentOrdersList.innerHTML='';let total=0;currentTrip.forEach(order=>{const li=document.createElement('li');li.textContent=`${order.address} - ${order.price} ₽`;total+=order.price;currentOrdersList.appendChild(li);});tripTotalSpan.textContent=total;}
     function renderHistory(){historyList.innerHTML='';shiftHistory.forEach((trip,index)=>{const details=document.createElement('details');const summary=document.createElement('summary');const tripTotal=trip.orders.reduce((sum,order)=>sum+order.price,0);summary.textContent=`Рейс #${shiftHistory.length-index} - ${tripTotal} ₽`;const ul=document.createElement('ul');trip.orders.forEach(order=>{const li=document.createElement('li');li.textContent=`${order.address} - ${order.price} ₽`;ul.appendChild(li);});details.appendChild(summary);details.appendChild(ul);historyList.appendChild(details);});}
     function updateShiftState(isStarting){newTripBtn.disabled=!isStarting;endShiftBtn.disabled=!isStarting;if(!isStarting){currentTripSection.classList.add('hidden');}}
@@ -246,9 +239,9 @@
 
     // --- НАЧАЛЬНАЯ ЗАГРУЗКА ПРИЛОЖЕНИЯ ---
     function initializeApp() {
-        initMapsAndLogic();
         if (authToken && userEmail) {
             userEmailDisplay.textContent = userEmail;
+            initMapsAndLogic();
             loadState();
             if (currentTrip.length > 0 || shiftHistory.length > 0) {
                 renderCurrentTrip(); renderHistory();
