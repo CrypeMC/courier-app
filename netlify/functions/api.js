@@ -7,6 +7,7 @@ const mongoUri = process.env.MONGODB_URI;
 const suggestApiKey = process.env.YANDEX_SUGGEST_API_KEY;
 const jwtSecret = process.env.JWT_SECRET;
 
+// Используем один клиент для всех вызовов функции
 const client = new MongoClient(mongoUri);
 
 async function handler(event) {
@@ -15,13 +16,14 @@ async function handler(event) {
     try {
         await client.connect();
         const db = client.db('courierApp');
+        const usersCollection = db.collection('users');
 
+        // --- МАРШРУТИЗАТОР ЗАПРОСОВ ---
+        
         if (path.startsWith('/register') && event.httpMethod === 'POST') {
-            const { email, password, name } = JSON.parse(event.body);
-            if (!email || !password || !name) throw new Error('Имя, Email и пароль обязательны');
-            if (name.length < 3) throw new Error('Имя должно быть не менее 3 символов');
+            const { name, email, password } = JSON.parse(event.body);
+            if (!name || !email || !password) throw new Error('Имя, Email и пароль обязательны');
 
-            const usersCollection = db.collection('users');
             const existingUser = await usersCollection.findOne({ email: email.toLowerCase() });
             if (existingUser) throw new Error('Пользователь с таким email уже существует');
 
@@ -32,15 +34,15 @@ async function handler(event) {
 
         if (path.startsWith('/login') && event.httpMethod === 'POST') {
             const { email, password } = JSON.parse(event.body);
-            const usersCollection = db.collection('users');
             const user = await usersCollection.findOne({ email: email.toLowerCase() });
             if (!user) throw new Error('Неверный email или пароль');
 
             const isMatch = await bcrypt.compare(password, user.password);
             if (!isMatch) throw new Error('Неверный email или пароль');
-
-            const token = jwt.sign({ userId: user._id, email: user.email, name: user.name }, jwtSecret, { expiresIn: '30d' });
-            return { statusCode: 200, body: JSON.stringify({ token, email: user.email, name: user.name }) };
+            
+            // ГЛАВНОЕ ИЗМЕНЕНИЕ: мы используем user.name || '' для обратной совместимости
+            const token = jwt.sign({ userId: user._id, email: user.email, name: user.name || '' }, jwtSecret, { expiresIn: '30d' });
+            return { statusCode: 200, body: JSON.stringify({ token, email: user.email, name: user.name || '' }) };
         }
         
         if (path.startsWith('/suggest')) {
@@ -48,16 +50,29 @@ async function handler(event) {
             const { text, lat, lon } = event.queryStringParameters;
             const url = `https://suggest-maps.yandex.ru/v1/suggest?apikey=${suggestApiKey}&text=${encodeURIComponent(text)}&ll=${lon},${lat}&print_address=1`;
             const response = await fetch(url);
+            if (!response.ok) throw new Error(`Ошибка API подсказок: ${response.statusText}`);
             const data = await response.json();
-            if (!response.ok) throw new Error(data.message || 'Ошибка API подсказок');
             return { statusCode: 200, body: JSON.stringify(data.results || []) };
         }
 
+        // --- ВСЕ ОСТАЛЬНЫЕ ЗАПРОСЫ ТРЕБУЮТ АВТОРИЗАЦИИ ---
         const authHeader = event.headers.authorization;
         if (!authHeader) throw new Error('Требуется авторизация');
         const token = authHeader.split(' ')[1];
         const decoded = jwt.verify(token, jwtSecret);
         const userId = decoded.userId;
+
+        // НОВЫЙ МАРШРУТ для обновления имени
+        if (path.startsWith('/update-name') && event.httpMethod === 'POST') {
+            const { name } = JSON.parse(event.body);
+            if (!name) throw new Error('Имя не может быть пустым');
+            
+            await usersCollection.updateOne(
+                { _id: new ObjectId(userId) },
+                { $set: { name: name } }
+            );
+            return { statusCode: 200, body: JSON.stringify({ message: 'Имя обновлено' }) };
+        }
 
         const shiftsCollection = db.collection('shifts');
 
