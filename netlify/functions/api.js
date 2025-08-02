@@ -1,4 +1,4 @@
-const { MongoClient, ObjectId } = require('mongodb'); // ObjectId нужен для поиска по userId
+const { MongoClient, ObjectId } = require('mongodb');
 const fetch = require('node-fetch');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -7,7 +7,6 @@ const mongoUri = process.env.MONGODB_URI;
 const suggestApiKey = process.env.YANDEX_SUGGEST_API_KEY;
 const jwtSecret = process.env.JWT_SECRET;
 
-// Используем один клиент для всех вызовов функции
 const client = new MongoClient(mongoUri);
 
 async function handler(event) {
@@ -17,18 +16,17 @@ async function handler(event) {
         await client.connect();
         const db = client.db('courierApp');
 
-        // --- МАРШРУТИЗАТОР ЗАПРОСОВ ---
-        
         if (path.startsWith('/register') && event.httpMethod === 'POST') {
-            const { email, password } = JSON.parse(event.body);
-            if (!email || !password) throw new Error('Email и пароль обязательны');
+            const { email, password, name } = JSON.parse(event.body);
+            if (!email || !password || !name) throw new Error('Имя, Email и пароль обязательны');
+            if (name.length < 3) throw new Error('Имя должно быть не менее 3 символов');
 
             const usersCollection = db.collection('users');
             const existingUser = await usersCollection.findOne({ email: email.toLowerCase() });
             if (existingUser) throw new Error('Пользователь с таким email уже существует');
 
             const hashedPassword = await bcrypt.hash(password, 10);
-            await usersCollection.insertOne({ email: email.toLowerCase(), password: hashedPassword });
+            await usersCollection.insertOne({ name, email: email.toLowerCase(), password: hashedPassword });
             return { statusCode: 201, body: JSON.stringify({ message: 'Пользователь успешно зарегистрирован' }) };
         }
 
@@ -41,8 +39,8 @@ async function handler(event) {
             const isMatch = await bcrypt.compare(password, user.password);
             if (!isMatch) throw new Error('Неверный email или пароль');
 
-            const token = jwt.sign({ userId: user._id, email: user.email }, jwtSecret, { expiresIn: '30d' });
-            return { statusCode: 200, body: JSON.stringify({ token, email: user.email }) };
+            const token = jwt.sign({ userId: user._id, email: user.email, name: user.name }, jwtSecret, { expiresIn: '30d' });
+            return { statusCode: 200, body: JSON.stringify({ token, email: user.email, name: user.name }) };
         }
         
         if (path.startsWith('/suggest')) {
@@ -55,7 +53,6 @@ async function handler(event) {
             return { statusCode: 200, body: JSON.stringify(data.results || []) };
         }
 
-        // --- ВСЕ ОСТАЛЬНЫЕ ЗАПРОСЫ ТРЕБУЮТ АВТОРИЗАЦИИ ---
         const authHeader = event.headers.authorization;
         if (!authHeader) throw new Error('Требуется авторизация');
         const token = authHeader.split(' ')[1];
@@ -66,7 +63,7 @@ async function handler(event) {
 
         if (path.startsWith('/shifts') && event.httpMethod === 'POST') {
             const shiftData = JSON.parse(event.body);
-            shiftData.userId = new ObjectId(userId); // <-- ПРИВЯЗЫВАЕМ СМЕНУ К ПОЛЬЗОВАТЕЛЮ
+            shiftData.userId = new ObjectId(userId);
             await shiftsCollection.insertOne(shiftData);
             return { statusCode: 201, body: JSON.stringify({ message: 'Смена сохранена' }) };
         }
