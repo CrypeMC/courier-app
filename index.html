@@ -23,7 +23,7 @@
             </div>
             <div id="register-form" class="hidden">
                 <h1>Регистрация</h1>
-                <input type="text" id="register-name" placeholder="Имя или никнейм" autocomplete="nickname"> <!-- ВОТ ОНО -->
+                <input type="text" id="register-name" placeholder="Имя или Никнейм" autocomplete="name">
                 <input type="email" id="register-email" placeholder="Email" autocomplete="email">
                 <input type="password" id="register-password" placeholder="Пароль" autocomplete="new-password">
                 <button id="register-btn">Зарегистрироваться</button>
@@ -31,12 +31,22 @@
             </div>
         </div>
     </div>
+    
+    <!-- НОВЫЙ ЭКРАН ДЛЯ СТАРЫХ ПОЛЬЗОВАТЕЛЕЙ -->
+    <div id="update-name-screen" class="screen hidden">
+        <div class="container">
+            <h1>Добро пожаловать!</h1>
+            <p>Пожалуйста, укажите ваше имя или никнейм. Это нужно для завершения настройки вашего аккаунта.</p>
+            <input type="text" id="update-name-input" placeholder="Ваше имя или никнейм">
+            <button id="save-name-btn">Сохранить и продолжить</button>
+        </div>
+    </div>
 
     <!-- ЭКРАН НАЧАЛА СМЕНЫ -->
     <div id="start-shift-screen" class="screen hidden">
         <div class="container">
             <h1>Смена закрыта</h1>
-            <p>Вы вошли как: <b id="user-display"></b></p> <!-- НОВЫЙ ID -->
+            <p>Вы вошли как: <b id="user-name-display"></b> (<span id="user-email-display"></span>)</p>
             <button id="open-shift-btn">Открыть новую смену</button>
             <button id="history-btn">История смен</button>
             <button id="logout-btn" class="danger-btn">Выйти</button>
@@ -51,7 +61,6 @@
                 <button id="new-trip-btn">Новый рейс</button>
                 <button id="end-shift-btn" class="danger-btn">Завершить смену</button>
             </div>
-
             <div id="current-trip-section" class="hidden">
                 <h2>Текущий рейс</h2>
                 <div class="add-order">
@@ -65,17 +74,14 @@
                 </div>
                 <button id="end-trip-btn">Завершить рейс</button>
             </div>
-
             <div id="shift-summary-section" class="hidden">
                 <h2>Смена завершена!</h2>
                 <p>Всего рейсов: <span id="shift-trips-count">0</span></p>
                 <p>Общий заработок: <span id="shift-total-earnings">0</span> ₽</p>
                 <button id="go-to-start-screen-btn">Ок, на главный экран</button>
             </div>
-
             <h2>История за смену</h2>
             <div id="history-list"></div>
-
             <details id="debug-container">
                 <summary>Показать/скрыть окно отладки</summary>
                 <button id="clear-log-btn">Очистить лог</button>
@@ -96,7 +102,7 @@
 
 </div>
 
-<script src="https://api-maps.yandex.ru/2.1/?apikey=67c02755-d347-4602-94f5-0470da39c1d1&lang=ru_RU&load=package.standard,suggest"></script>
+<script src="https://api-maps.yandex.ru/2.1/?apikey=ВАШ_КЛЮЧ_ДЛЯ_КАРТ&lang=ru_RU&load=package.standard,suggest"></script>
 <script src="app.js"></script>
 
 </body>
