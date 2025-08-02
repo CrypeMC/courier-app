@@ -6,12 +6,18 @@
     <title>Курьер Лог</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" id="theme-color-meta" content="#ffffff">
 </head>
 <body>
 
-<div class="app-container">
+<div id="splash-screen">
+    <div class="splash-content">
+        <img src="https://via.placeholder.com/192.png" alt="App Icon" class="splash-icon">
+    </div>
+    <a href="https://t.me/PulzWeb" target="_blank" class="splash-link">PulzWeb</a>
+</div>
 
-    <!-- ЭКРАН ВХОДА И РЕГИСТРАЦИИ -->
+<div class="app-container hidden">
     <div id="auth-screen" class="screen hidden">
         <div class="container">
             <div id="login-form">
@@ -31,7 +37,6 @@
             </div>
         </div>
     </div>
-    
     <div id="update-name-screen" class="screen hidden">
         <div class="container">
             <h1>Добро пожаловать!</h1>
@@ -40,19 +45,16 @@
             <button id="save-name-btn">Сохранить и продолжить</button>
         </div>
     </div>
-
-    <!-- ЭКРАН НАЧАЛА СМЕНЫ -->
     <div id="start-shift-screen" class="screen hidden">
         <div class="container">
             <h1>Смена закрыта</h1>
             <p>Вы вошли как: <b id="user-name-display"></b> (<span id="user-email-display"></span>)</p>
             <button id="open-shift-btn">Открыть новую смену</button>
             <button id="history-btn">История смен</button>
+            <button id="theme-toggle-btn" class="secondary-btn">Сменить тему</button>
             <button id="logout-btn" class="danger-btn">Выйти</button>
         </div>
     </div>
-
-    <!-- ОСНОВНОЕ ПРИЛОЖЕНИЕ -->
     <div id="main-app" class="screen hidden">
         <div class="container">
             <h1>Смена</h1>
@@ -89,8 +91,6 @@
             </details>
         </div>
     </div>
-
-    <!-- ЭКРАН ИСТОРИИ -->
     <div id="history-screen" class="screen hidden">
         <div class="container">
             <h1>История всех смен</h1>
@@ -99,11 +99,9 @@
             <button id="back-to-start-screen-btn">Назад</button>
         </div>
     </div>
-
 </div>
 
 <script src="https://api-maps.yandex.ru/2.1/?apikey=67c02755-d347-4602-94f5-0470da39c1d1&lang=ru_RU&load=package.standard,suggest"></script>
 <script src="app.js"></script>
-
 </body>
 </html>
