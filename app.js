@@ -1,4 +1,18 @@
 (function() {
+    // --- ТЕМА (ВЫПОЛНЯЕТСЯ НЕМЕДЛЕННО) ---
+    const themeColorMeta = document.getElementById('theme-color-meta');
+    function applyTheme(theme) {
+        document.body.dataset.theme = theme;
+        localStorage.setItem('theme', theme);
+        const themeColor = theme === 'dark' ? '#18191a' : '#ffffff';
+        if (themeColorMeta) themeColorMeta.content = themeColor;
+    }
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const initialTheme = savedTheme || (prefersDark ? 'dark' : 'light');
+    applyTheme(initialTheme);
+    // --- КОНЕЦ БЛОКА ТЕМЫ ---
+
     // --- БЛОК ОТЛАДКИ ---
     const debugLog = document.getElementById('debug-log');
     const clearLogBtn = document.getElementById('clear-log-btn');
@@ -20,10 +34,12 @@
     if (copyLogBtn) { copyLogBtn.addEventListener('click', () => { navigator.clipboard.writeText(debugLog.innerText).then(() => alert('Лог скопирован!')).catch(err => alert('Ошибка копирования: ' + err)); }); }
     
     // --- ЭЛЕМЕНТЫ DOM ---
+    const splashScreen = document.getElementById('splash-screen');
+    const appContainer = document.querySelector('.app-container');
     const screens = document.querySelectorAll('.screen');
     const loginForm = document.getElementById('login-form'), registerForm = document.getElementById('register-form'), registerNameInput = document.getElementById('register-name'), loginEmailInput = document.getElementById('login-email'), loginPasswordInput = document.getElementById('login-password'), registerEmailInput = document.getElementById('register-email'), registerPasswordInput = document.getElementById('register-password'), loginBtn = document.getElementById('login-btn'), registerBtn = document.getElementById('register-btn'), showRegisterLink = document.getElementById('show-register-link'), showLoginLink = document.getElementById('show-login-link');
     const updateNameScreen = document.getElementById('update-name-screen'), updateNameInput = document.getElementById('update-name-input'), saveNameBtn = document.getElementById('save-name-btn');
-    const userNameDisplay = document.getElementById('user-name-display'), userEmailDisplay = document.getElementById('user-email-display'), openShiftBtn = document.getElementById('open-shift-btn'), historyBtn = document.getElementById('history-btn'), logoutBtn = document.getElementById('logout-btn');
+    const userNameDisplay = document.getElementById('user-name-display'), userEmailDisplay = document.getElementById('user-email-display'), openShiftBtn = document.getElementById('open-shift-btn'), historyBtn = document.getElementById('history-btn'), logoutBtn = document.getElementById('logout-btn'), themeToggleBtn = document.getElementById('theme-toggle-btn');
     const addressInput = document.getElementById('address-input'), suggestContainer = document.getElementById('my-suggest-container'), newTripBtn = document.getElementById('new-trip-btn'), endShiftBtn = document.getElementById('end-shift-btn'), currentTripSection = document.getElementById('current-trip-section'), addOrderBtn = document.getElementById('add-order-btn'), currentOrdersList = document.getElementById('current-orders-list'), tripTotalSpan = document.getElementById('trip-total'), endTripBtn = document.getElementById('end-trip-btn');
     const shiftSummarySection = document.getElementById('shift-summary-section'), shiftTripsCount = document.getElementById('shift-trips-count'), shiftTotalEarnings = document.getElementById('shift-total-earnings'), goToStartScreenBtn = document.getElementById('go-to-start-screen-btn');
     const fullHistoryList = document.getElementById('full-history-list'), backToStartScreenBtn = document.getElementById('back-to-start-screen-btn'), clearHistoryBtn = document.getElementById('clear-history-btn');
@@ -86,7 +102,7 @@
         localStorage.removeItem('courierUserEmail');
         localStorage.removeItem('courierUserName');
         localStorage.removeItem('lastActiveScreen');
-        localStorage.removeItem('shiftInProgress'); // <-- Важно!
+        localStorage.removeItem('shiftInProgress');
         showScreen('auth-screen');
         logToScreen('Пользователь вышел. Все локальные данные очищены.');
     });
@@ -101,6 +117,14 @@
             alert('Имя успешно сохранено!');
             initializeApp();
         } catch (error) { alert(`Ошибка сохранения имени: ${error.message}`); logToScreen(`Ошибка сохранения имени: ${error.message}`); }
+    });
+
+    // --- ЛОГИКА ТЕМЫ ---
+    themeToggleBtn.addEventListener('click', () => {
+        const currentTheme = document.body.dataset.theme;
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        applyTheme(newTheme);
+        logToScreen(`Тема переключена на: ${newTheme}`);
     });
 
     // --- ЛОКАЛЬНОЕ ХРАНИЛИЩЕ ---
@@ -129,7 +153,7 @@
     // --- ОСНОВНАЯ ЛОГИКА ПРИЛОЖЕНИЯ ---
     function initMapsAndLogic() {
         if (mapsInitialized) return; 
-        if (typeof ymaps === 'undefined') { logToScreen('ОШИБКА: `ymaps` не найден.'); return; }
+        if (typeof ymaps === 'undefined') { logToScreen('ОШИКА: `ymaps` не найден.'); return; }
         ymaps.ready(async () => {
             logToScreen("API Карт готово.");
             mapsInitialized = true;
@@ -178,7 +202,7 @@
     // --- ОБРАБОТЧИКИ КНОПОК ---
     openShiftBtn.addEventListener('click', () => {
         clearLocalShiftData();
-        localStorage.setItem('shiftInProgress', 'true'); // <-- Важно!
+        localStorage.setItem('shiftInProgress', 'true');
         currentTrip = []; shiftHistory = [];
         renderCurrentTrip(); renderHistory();
         updateShiftState(true);
@@ -211,7 +235,7 @@
                         trip.orders.forEach(order => {
                             const orderLi = document.createElement('li');
                             orderLi.style.marginLeft = "20px";
-                            orderLi.style.background = "#fff";
+                            orderLi.style.background = "var(--list-item-hover-bg)";
                             orderLi.textContent = `${order.address} (${order.price} ₽)`;
                             ordersList.appendChild(orderLi);
                         });
@@ -232,10 +256,7 @@
         }
     }
 
-    historyBtn.addEventListener('click', () => {
-        fetchAndRenderFullHistory();
-        showScreen('history-screen');
-    });
+    historyBtn.addEventListener('click', () => { fetchAndRenderFullHistory(); showScreen('history-screen'); });
     
     clearHistoryBtn.addEventListener('click', async () => {
         if (confirm('ВЫ УВЕРЕНЫ? Это действие удалит ВСЮ вашу историю смен без возможности восстановления.')) {
@@ -325,11 +346,8 @@
     async function initializeApp() {
         if (authToken && userEmail) {
             if (!userName) { showScreen('update-name-screen'); return; }
-
-            userNameDisplay.textContent = userName;
-            userEmailDisplay.textContent = userEmail;
+            userNameDisplay.textContent = userName; userEmailDisplay.textContent = userEmail;
             initMapsAndLogic();
-            
             const lastScreen = localStorage.getItem('lastActiveScreen');
             
             if (lastScreen === 'history-screen') {
@@ -339,10 +357,7 @@
                 loadState();
                 renderCurrentTrip(); renderHistory();
                 updateShiftState(true);
-                if(currentTrip.length > 0) {
-                    currentTripSection.classList.remove('hidden');
-                    newTripBtn.disabled = true;
-                }
+                if(currentTrip.length > 0) { currentTripSection.classList.remove('hidden'); newTripBtn.disabled = true; }
                 showScreen('main-app');
             } else {
                 showScreen('start-shift-screen');
@@ -352,6 +367,11 @@
         }
     }
 
-    initializeApp();
+    // Показываем основной контейнер после небольшой задержки, чтобы скрыть "моргание"
+    setTimeout(() => {
+        splashScreen.classList.add('hidden');
+        appContainer.classList.remove('hidden');
+        initializeApp();
+    }, 500); // 0.5 секунды
 
 })();
