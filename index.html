@@ -10,14 +10,18 @@
 </head>
 <body>
 
+<!-- ЭКРАН ЗАГРУЗКИ (СПЛЭШ-СКРИН) -->
 <div id="splash-screen">
     <div class="splash-content">
-        <img src="https://via.placeholder.com/192.png" alt="App Icon" class="splash-icon">
+        <!-- ССЫЛКА НА ИКОНКУ. МОЖЕШЬ ЗАГРУЗИТЬ СВОЮ И ПОМЕНЯТЬ ПУТЬ -->
+        <img src="https://img.icons8.com/color-glass/96/successful-delivery.png" alt="App Icon" class="splash-icon">
     </div>
     <a href="https://t.me/pulz_telega" target="_blank" class="splash-link">PulzWeb</a>
 </div>
 
+<!-- ГЛАВНЫЙ КОНТЕЙНЕР ПРИЛОЖЕНИЯ -->
 <div class="app-container hidden">
+    <!-- ЭКРАН ВХОДА И РЕГИСТРАЦИИ -->
     <div id="auth-screen" class="screen hidden">
         <div class="container">
             <div id="login-form">
@@ -37,6 +41,7 @@
             </div>
         </div>
     </div>
+    
     <div id="update-name-screen" class="screen hidden">
         <div class="container">
             <h1>Добро пожаловать!</h1>
@@ -45,16 +50,19 @@
             <button id="save-name-btn">Сохранить и продолжить</button>
         </div>
     </div>
+
+    <!-- ЭКРАН НАЧАЛА СМЕНЫ -->
     <div id="start-shift-screen" class="screen hidden">
         <div class="container">
             <h1>Смена закрыта</h1>
             <p>Вы вошли как: <b id="user-name-display"></b> (<span id="user-email-display"></span>)</p>
             <button id="open-shift-btn">Открыть новую смену</button>
             <button id="history-btn">История смен</button>
-            <button id="theme-toggle-btn" class="secondary-btn">Сменить тему</button>
             <button id="logout-btn" class="danger-btn">Выйти</button>
         </div>
     </div>
+
+    <!-- ОСНОВНОЕ ПРИЛОЖЕНИЕ -->
     <div id="main-app" class="screen hidden">
         <div class="container">
             <h1>Смена</h1>
@@ -91,6 +99,8 @@
             </details>
         </div>
     </div>
+
+    <!-- ЭКРАН ИСТОРИИ -->
     <div id="history-screen" class="screen hidden">
         <div class="container">
             <h1>История всех смен</h1>
@@ -100,6 +110,12 @@
         </div>
     </div>
 </div>
+
+<!-- ГЛОБАЛЬНАЯ КНОПКА СМЕНЫ ТЕМЫ -->
+<button id="global-theme-toggle" class="theme-toggle-btn">
+    <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.106a.75.75 0 010 1.06l-1.591 1.59a.75.75 0 11-1.06-1.06l1.59-1.591a.75.75 0 011.06 0zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5h2.25a.75.75 0 01.75.75zM17.894 17.894a.75.75 0 011.06 0l1.591 1.59a.75.75 0 11-1.06 1.06l-1.59-1.591a.75.75 0 010-1.06zM12 18a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM6.106 17.894a.75.75 0 010-1.06l-1.591-1.59a.75.75 0 01-1.06 1.06l1.59 1.591a.75.75 0 011.06 0zM4.5 12a.75.75 0 01.75-.75h2.25a.75.75 0 010 1.5H5.25a.75.75 0 01-.75-.75zM6.106 6.106a.75.75 0 011.06 0l1.591 1.59a.75.75 0 01-1.06 1.06L6.106 7.166a.75.75 0 010-1.06z"/></svg>
+    <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M9.528 1.718a.75.75 0 01.162.819A8.97 8.97 0 009 6a9 9 0 009 9 8.97 8.97 0 003.463-.69.75.75 0 01.981.98 10.503 10.503 0 01-9.694 6.46c-5.799 0-10.5-4.701-10.5-10.5 0-3.468 1.68-6.57 4.286-8.52a.75.75 0 01.818.162z" clip-rule="evenodd"/></svg>
+</button>
 
 <script src="https://api-maps.yandex.ru/2.1/?apikey=67c02755-d347-4602-94f5-0470da39c1d1&lang=ru_RU&load=package.standard,suggest"></script>
 <script src="app.js"></script>
