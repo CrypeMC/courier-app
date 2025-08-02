@@ -3,23 +3,35 @@
     const debugLog = document.getElementById('debug-log');
     const clearLogBtn = document.getElementById('clear-log-btn');
     const copyLogBtn = document.getElementById('copy-log-btn');
-    function logToScreen(message) { if (debugLog) { const time = new Date().toLocaleTimeString(); debugLog.innerHTML += `[${time}] ${message}\n`; debugLog.scrollTop = debugLog.scrollHeight; } console.log(message); }
-    logToScreen('app.js успешно загружен и готов к работе.');
-    if (clearLogBtn) { clearLogBtn.addEventListener('click', () => { debugLog.innerHTML = ''; }); }
+    let logContent = localStorage.getItem('courierAppLog') || '';
+    if (debugLog) debugLog.innerHTML = logContent;
+    function logToScreen(message) {
+        if (debugLog) {
+            const time = new Date().toLocaleTimeString();
+            const newLog = `[${time}] ${message}\n`;
+            debugLog.innerHTML += newLog;
+            logContent += newLog;
+            localStorage.setItem('courierAppLog', logContent);
+            debugLog.scrollTop = debugLog.scrollHeight;
+        }
+        console.log(message);
+    }
+    if (clearLogBtn) { clearLogBtn.addEventListener('click', () => { debugLog.innerHTML = ''; logContent = ''; localStorage.removeItem('courierAppLog'); }); }
     if (copyLogBtn) { copyLogBtn.addEventListener('click', () => { navigator.clipboard.writeText(debugLog.innerText).then(() => alert('Лог скопирован!')).catch(err => alert('Ошибка копирования: ' + err)); }); }
     
     // --- ЭЛЕМЕНТЫ DOM ---
     const screens = document.querySelectorAll('.screen');
-    const loginForm = document.getElementById('login-form'), registerForm = document.getElementById('register-form'), loginEmailInput = document.getElementById('login-email'), loginPasswordInput = document.getElementById('login-password'), registerEmailInput = document.getElementById('register-email'), registerPasswordInput = document.getElementById('register-password'), loginBtn = document.getElementById('login-btn'), registerBtn = document.getElementById('register-btn'), showRegisterLink = document.getElementById('show-register-link'), showLoginLink = document.getElementById('show-login-link');
-    const userEmailDisplay = document.getElementById('user-email-display'), openShiftBtn = document.getElementById('open-shift-btn'), historyBtn = document.getElementById('history-btn'), logoutBtn = document.getElementById('logout-btn');
+    const loginForm = document.getElementById('login-form'), registerForm = document.getElementById('register-form'), registerNameInput = document.getElementById('register-name'), loginEmailInput = document.getElementById('login-email'), loginPasswordInput = document.getElementById('login-password'), registerEmailInput = document.getElementById('register-email'), registerPasswordInput = document.getElementById('register-password'), loginBtn = document.getElementById('login-btn'), registerBtn = document.getElementById('register-btn'), showRegisterLink = document.getElementById('show-register-link'), showLoginLink = document.getElementById('show-login-link');
+    const userNameDisplay = document.getElementById('user-name-display'), userEmailDisplay = document.getElementById('user-email-display'), openShiftBtn = document.getElementById('open-shift-btn'), historyBtn = document.getElementById('history-btn'), logoutBtn = document.getElementById('logout-btn');
     const addressInput = document.getElementById('address-input'), suggestContainer = document.getElementById('my-suggest-container'), newTripBtn = document.getElementById('new-trip-btn'), endShiftBtn = document.getElementById('end-shift-btn'), currentTripSection = document.getElementById('current-trip-section'), addOrderBtn = document.getElementById('add-order-btn'), currentOrdersList = document.getElementById('current-orders-list'), tripTotalSpan = document.getElementById('trip-total'), endTripBtn = document.getElementById('end-trip-btn');
     const shiftSummarySection = document.getElementById('shift-summary-section'), shiftTripsCount = document.getElementById('shift-trips-count'), shiftTotalEarnings = document.getElementById('shift-total-earnings'), goToStartScreenBtn = document.getElementById('go-to-start-screen-btn');
     const fullHistoryList = document.getElementById('full-history-list'), backToStartScreenBtn = document.getElementById('back-to-start-screen-btn');
-    const historyList=document.getElementById('history-list');
+    const historyList = document.getElementById('history-list');
 
     // --- ПЕРЕМЕННЫЕ СОСТОЯНИЯ ---
     let authToken = localStorage.getItem('courierAuthToken');
     let userEmail = localStorage.getItem('courierUserEmail');
+    let userName = localStorage.getItem('courierUserName');
     let userCoords = null, zonesGeoJSON, currentTrip = [], shiftHistory = [];
     let mapsInitialized = false;
 
@@ -27,13 +39,9 @@
     function showScreen(screenId) {
         logToScreen(`Переключаюсь на экран: ${screenId}`);
         screens.forEach(s => s.classList.add('hidden'));
-        const screenToShow = document.getElementById(screenId);
-        if (screenToShow) {
-            screenToShow.classList.remove('hidden');
-            // Сохраняем последний активный экран, кроме экрана авторизации
-            if (screenId !== 'auth-screen') {
-                localStorage.setItem('lastActiveScreen', screenId);
-            }
+        document.getElementById(screenId)?.classList.remove('hidden');
+        if (screenId !== 'auth-screen') {
+            localStorage.setItem('lastActiveScreen', screenId);
         }
     }
 
@@ -48,8 +56,14 @@
         options.headers = { ...defaultHeaders, ...options.headers };
         logToScreen(`Отправляю запрос на: ${endpoint}`);
         const response = await fetch(`/.netlify/functions/api${endpoint}`, options);
-        if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.error || `Неизвестная ошибка сервера (статус ${response.status})`); }
-        if (response.status === 201 || response.status === 204) { logToScreen("Запрос успешен (без тела ответа)."); return null; }
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Неизвестная ошибка сервера (статус ${response.status})`);
+        }
+        if (response.status === 201 || response.status === 204) {
+            logToScreen("Запрос успешен (без тела ответа).");
+            return null;
+        }
         const data = await response.json();
         logToScreen("Получен успешный ответ от сервера.");
         return data;
@@ -59,22 +73,26 @@
     loginBtn.addEventListener('click', async () => {
         try {
             const data = await apiFetch('/login', { method: 'POST', body: JSON.stringify({ email: loginEmailInput.value, password: loginPasswordInput.value }) });
-            authToken = data.token; userEmail = data.email;
-            localStorage.setItem('courierAuthToken', authToken); localStorage.setItem('courierUserEmail', userEmail);
+            authToken = data.token; userEmail = data.email; userName = data.name;
+            localStorage.setItem('courierAuthToken', authToken);
+            localStorage.setItem('courierUserEmail', userEmail);
+            localStorage.setItem('courierUserName', userName);
             initializeApp();
-        } catch (error) { alert(`Ошибка входа: ${error.message}`); logToScreen(`Ошибка входа: ${error.message}`);}
+        } catch (error) { alert(`Ошибка входа: ${error.message}`); logToScreen(`Ошибка входа: ${error.message}`); }
     });
     registerBtn.addEventListener('click', async () => {
         try {
-            await apiFetch('/register', { method: 'POST', body: JSON.stringify({ email: registerEmailInput.value, password: registerPasswordInput.value }) });
+            await apiFetch('/register', { method: 'POST', body: JSON.stringify({ name: registerNameInput.value, email: registerEmailInput.value, password: registerPasswordInput.value }) });
             alert('Регистрация прошла успешно! Теперь вы можете войти.');
             showLoginLink.click();
-        } catch (error) { alert(`Ошибка регистрации: ${error.message}`); logToScreen(`Ошибка регистрации: ${error.message}`);}
+        } catch (error) { alert(`Ошибка регистрации: ${error.message}`); logToScreen(`Ошибка регистрации: ${error.message}`); }
     });
     logoutBtn.addEventListener('click', () => {
-        authToken = null; userEmail = null;
-        localStorage.removeItem('courierAuthToken'); localStorage.removeItem('courierUserEmail');
-        localStorage.removeItem('lastActiveScreen'); // Забываем последний экран
+        authToken = null; userEmail = null; userName = null;
+        localStorage.removeItem('courierAuthToken');
+        localStorage.removeItem('courierUserEmail');
+        localStorage.removeItem('courierUserName');
+        localStorage.removeItem('lastActiveScreen');
         showScreen('auth-screen');
         logToScreen('Пользователь вышел. Токен удален.');
     });
@@ -118,7 +136,7 @@
             }
         });
     }
-    async function loadZones(){ try { const response=await fetch('/data/zones.geojson'); if(!response.ok){throw new Error(`Статус: ${response.status}`);} zonesGeoJSON=await response.json(); logToScreen("Файл зон успешно загружен."); } catch(e) { logToScreen(`Ошибка загрузки зон: ${e.message}`); } }
+    async function loadZones() { try { const response = await fetch('/data/zones.geojson'); if (!response.ok) { throw new Error(`Статус: ${response.status}`); } zonesGeoJSON = await response.json(); logToScreen("Файл зон успешно загружен."); } catch (e) { logToScreen(`Ошибка загрузки зон: ${e.message}`); } }
     
     addressInput.addEventListener('input', async () => {
         const text = addressInput.value;
@@ -143,12 +161,12 @@
         });
         suggestContainer.appendChild(list);
     }
-    function getPriceForCoordinates(coords){if(!zonesGeoJSON){return{price:0};} const point={type:'Point',coordinates:coords};for(const feature of zonesGeoJSON.features){const zoneName=feature.properties.description||'БЕЗ ИМЕНИ';const polygon=feature.geometry;if(isPointInPolygon(point,polygon)){return calculatePriceFromZoneName(zoneName);}} return{price:0};}
-    function isPointInPolygon(point,polygon){const pointCoords=point.coordinates;const polygonCoords=polygon.coordinates[0];let isInside=!1;for(let i=0,j=polygonCoords.length-1;i<polygonCoords.length;j=i++){const xi=polygonCoords[i][0],yi=polygonCoords[i][1];const xj=polygonCoords[j][0],yj=polygonCoords[j][1];const intersect=((yi>pointCoords[1])!==(yj>pointCoords[1]))&&(pointCoords[0]<(xj-xi)*(pointCoords[1]-yi)/(yj-yi)+xi);if(intersect)isInside=!isInside;} return isInside;}
-    function calculatePriceFromZoneName(zoneName){if(!zoneName)return{price:0};const parts=zoneName.split('_');if(parts[0]!=='zone')return{price:0};const basePrice=parseInt(parts[1],10);if(parts.length>2&&parts[2]==='plus'){const additionalPrice=parseInt(parts[3],10);return{price:basePrice+additionalPrice};} return{price:basePrice};}
-    function renderCurrentTrip(){currentOrdersList.innerHTML='';let total=0;currentTrip.forEach(order=>{const li=document.createElement('li');li.textContent=`${order.address} - ${order.price} ₽`;total+=order.price;currentOrdersList.appendChild(li);});tripTotalSpan.textContent=total;}
-    function renderHistory(){historyList.innerHTML='';shiftHistory.forEach((trip,index)=>{const details=document.createElement('details');const summary=document.createElement('summary');const tripTotal=trip.orders.reduce((sum,order)=>sum+order.price,0);summary.textContent=`Рейс #${shiftHistory.length-index} - ${tripTotal} ₽`;const ul=document.createElement('ul');trip.orders.forEach(order=>{const li=document.createElement('li');li.textContent=`${order.address} - ${order.price} ₽`;ul.appendChild(li);});details.appendChild(summary);details.appendChild(ul);historyList.appendChild(details);});}
-    function updateShiftState(isStarting){logToScreen(`Обновляю состояние кнопок смены: ${isStarting}`);newTripBtn.disabled=!isStarting;endShiftBtn.disabled=!isStarting;if(!isStarting){currentTripSection.classList.add('hidden');}}
+    function getPriceForCoordinates(coords) { if (!zonesGeoJSON) { return { price: 0 }; } const point = { type: 'Point', coordinates: coords }; for (const feature of zonesGeoJSON.features) { const zoneName = feature.properties.description || 'БЕЗ ИМЕНИ'; const polygon = feature.geometry; if (isPointInPolygon(point, polygon)) { return calculatePriceFromZoneName(zoneName); } } return { price: 0 }; }
+    function isPointInPolygon(point, polygon) { const pointCoords = point.coordinates; const polygonCoords = polygon.coordinates[0]; let isInside = !1; for (let i = 0, j = polygonCoords.length - 1; i < polygonCoords.length; j = i++) { const xi = polygonCoords[i][0], yi = polygonCoords[i][1]; const xj = polygonCoords[j][0], yj = polygonCoords[j][1]; const intersect = ((yi > pointCoords[1]) !== (yj > pointCoords[1])) && (pointCoords[0] < (xj - xi) * (pointCoords[1] - yi) / (yj - yi) + xi); if (intersect) isInside = !isInside; } return isInside; }
+    function calculatePriceFromZoneName(zoneName) { if (!zoneName) return { price: 0 }; const parts = zoneName.split('_'); if (parts[0] !== 'zone') return { price: 0 }; const basePrice = parseInt(parts[1], 10); if (parts.length > 2 && parts[2] === 'plus') { const additionalPrice = parseInt(parts[3], 10); return { price: basePrice + additionalPrice }; } return { price: basePrice }; }
+    function renderCurrentTrip() { currentOrdersList.innerHTML = ''; let total = 0; currentTrip.forEach(order => { const li = document.createElement('li'); li.textContent = `${order.address} - ${order.price} ₽`; total += order.price; currentOrdersList.appendChild(li); }); tripTotalSpan.textContent = total; }
+    function renderHistory() { historyList.innerHTML = ''; shiftHistory.forEach((trip, index) => { const details = document.createElement('details'); const summary = document.createElement('summary'); const tripTotal = trip.orders.reduce((sum, order) => sum + order.price, 0); summary.textContent = `Рейс #${shiftHistory.length - index} - ${tripTotal} ₽`; const ul = document.createElement('ul'); trip.orders.forEach(order => { const li = document.createElement('li'); li.textContent = `${order.address} - ${order.price} ₽`; ul.appendChild(li); }); details.appendChild(summary); details.appendChild(ul); historyList.appendChild(details); }); }
+    function updateShiftState(isStarting) { logToScreen(`Обновляю состояние кнопок смены: ${isStarting}`); newTripBtn.disabled = !isStarting; endShiftBtn.disabled = !isStarting; if (!isStarting) { currentTripSection.classList.add('hidden'); } }
     
     // --- ОБРАБОТЧИКИ КНОПОК ---
     openShiftBtn.addEventListener('click', () => {
@@ -159,7 +177,7 @@
         showScreen('main-app');
     });
 
-    historyBtn.addEventListener('click', async () => {
+    async function fetchAndRenderFullHistory() {
         try {
             logToScreen('Запрашиваю историю всех смен...');
             const shifts = await apiFetch('/shifts');
@@ -174,8 +192,9 @@
                     shiftSummary.innerHTML = `Смена от ${shiftDate} - <b>${shift.totalEarnings} ₽</b> (${shift.tripCount} рейсов)`;
                     
                     const tripsList = document.createElement('div');
-                    shift.trips.reverse().forEach((trip, index) => { // reverse, чтобы рейсы были по порядку
+                    shift.trips.reverse().forEach((trip, index) => {
                         const tripDetails = document.createElement('details');
+                        tripDetails.style.marginLeft = "15px";
                         const tripSummary = document.createElement('summary');
                         const tripTotal = trip.orders.reduce((sum, order) => sum + order.price, 0);
                         tripSummary.textContent = `  Рейс #${index + 1}: ${tripTotal} ₽ (${trip.orders.length} зак.)`;
@@ -184,7 +203,8 @@
                         trip.orders.forEach(order => {
                             const orderLi = document.createElement('li');
                             orderLi.style.marginLeft = "20px";
-                            orderLi.textContent = `    - ${order.address} (${order.price} ₽)`;
+                            orderLi.style.background = "#fff";
+                            orderLi.textContent = `${order.address} (${order.price} ₽)`;
                             ordersList.appendChild(orderLi);
                         });
 
@@ -198,20 +218,24 @@
                     fullHistoryList.appendChild(shiftDetails);
                 });
             }
-            showScreen('history-screen');
         } catch (error) {
             alert(`Не удалось загрузить историю: ${error.message}`);
             logToScreen(`Ошибка загрузки истории: ${error.message}`);
         }
+    }
+
+    historyBtn.addEventListener('click', () => {
+        fetchAndRenderFullHistory();
+        showScreen('history-screen');
     });
 
     backToStartScreenBtn.addEventListener('click', () => showScreen('start-shift-screen'));
     
-    newTripBtn.addEventListener('click',()=>{currentTrip=[];renderCurrentTrip();currentTripSection.classList.remove('hidden');newTripBtn.disabled=true;});
+    newTripBtn.addEventListener('click', () => { currentTrip = []; renderCurrentTrip(); currentTripSection.classList.remove('hidden'); newTripBtn.disabled = true; });
     
     addOrderBtn.addEventListener('click', async () => {
-        const address = addressInput.value.trim();if (!address) return;
-        suggestContainer.innerHTML = '';addOrderBtn.disabled = true; addOrderBtn.textContent = '...';
+        const address = addressInput.value.trim(); if (!address) return;
+        suggestContainer.innerHTML = ''; addOrderBtn.disabled = true; addOrderBtn.textContent = '...';
         try {
             if (!ymaps.geocode) throw new Error("Функция геокодирования не готова.");
             const geoResult = await ymaps.geocode(address);
@@ -233,22 +257,22 @@
         }
     });
 
-    endTripBtn.addEventListener('click',()=>{
-        if(currentTrip.length===0)return;
-        shiftHistory.unshift({orders:[...currentTrip]});
-        currentTrip=[];
+    endTripBtn.addEventListener('click', () => {
+        if (currentTrip.length === 0) return;
+        shiftHistory.unshift({ orders: [...currentTrip] });
+        currentTrip = [];
         renderHistory(); renderCurrentTrip();
         saveState();
-        currentTripSection.classList.add('hidden'); newTripBtn.disabled=false;
+        currentTripSection.classList.add('hidden'); newTripBtn.disabled = false;
     });
 
     endShiftBtn.addEventListener('click', async () => {
-        if (shiftHistory.length === 0 && currentTrip.length === 0) { alert('Нельзя завершить пустую смену.');return; }
+        if (shiftHistory.length === 0 && currentTrip.length === 0) { alert('Нельзя завершить пустую смену.'); return; }
         if (currentTrip.length > 0) {
-            shiftHistory.unshift({orders:[...currentTrip]});
+            shiftHistory.unshift({ orders: [...currentTrip] });
             currentTrip = [];
         }
-        if (shiftHistory.length === 0) { alert('Нельзя завершить смену без рейсов.');return; }
+        if (shiftHistory.length === 0) { alert('Нельзя завершить смену без рейсов.'); return; }
         const shiftData = { date: new Date().toISOString(), trips: shiftHistory, totalEarnings: shiftHistory.reduce((total, trip) => total + trip.orders.reduce((tripSum, order) => tripSum + order.price, 0), 0), tripCount: shiftHistory.length };
         try {
             await apiFetch('/shifts', { method: 'POST', body: JSON.stringify(shiftData) });
@@ -272,14 +296,17 @@
     });
 
     // --- НАЧАЛЬНАЯ ЗАГРУЗКА ПРИЛОЖЕНИЯ ---
-    function initializeApp() {
+    async function initializeApp() {
         if (authToken && userEmail) {
+            userNameDisplay.textContent = userName;
             userEmailDisplay.textContent = userEmail;
-            initMapsAndLogic();
+            await initMapsAndLogic();
             loadState();
             const lastScreen = localStorage.getItem('lastActiveScreen');
-            if (lastScreen && lastScreen !== 'main-app') {
-                showScreen(lastScreen);
+            
+            if (lastScreen === 'history-screen') {
+                await fetchAndRenderFullHistory();
+                showScreen('history-screen');
             } else if (currentTrip.length > 0 || shiftHistory.length > 0) {
                 renderCurrentTrip(); renderHistory();
                 updateShiftState(true);
