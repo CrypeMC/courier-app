@@ -21,10 +21,8 @@
     if(debugLog) debugLog.innerHTML = logContent;
     function logToScreen(message) { 
         if (debugLog) { 
-            const time = new Date().toLocaleTimeString(); 
-            const newLog = `[${time}] ${message}\n`;
-            debugLog.innerHTML += newLog; 
-            logContent += newLog;
+            const time = new Date().toLocaleTimeString(); const newLog = `[${time}] ${message}\n`;
+            debugLog.innerHTML += newLog; logContent += newLog;
             localStorage.setItem('courierAppLog', logContent);
             debugLog.scrollTop = debugLog.scrollHeight; 
         } 
@@ -39,7 +37,8 @@
     const screens = document.querySelectorAll('.screen');
     const loginForm = document.getElementById('login-form'), registerForm = document.getElementById('register-form'), registerNameInput = document.getElementById('register-name'), loginEmailInput = document.getElementById('login-email'), loginPasswordInput = document.getElementById('login-password'), registerEmailInput = document.getElementById('register-email'), registerPasswordInput = document.getElementById('register-password'), loginBtn = document.getElementById('login-btn'), registerBtn = document.getElementById('register-btn'), showRegisterLink = document.getElementById('show-register-link'), showLoginLink = document.getElementById('show-login-link');
     const updateNameScreen = document.getElementById('update-name-screen'), updateNameInput = document.getElementById('update-name-input'), saveNameBtn = document.getElementById('save-name-btn');
-    const userNameDisplay = document.getElementById('user-name-display'), userEmailDisplay = document.getElementById('user-email-display'), openShiftBtn = document.getElementById('open-shift-btn'), historyBtn = document.getElementById('history-btn'), logoutBtn = document.getElementById('logout-btn'), themeToggleBtn = document.getElementById('theme-toggle-btn');
+    const userNameDisplay = document.getElementById('user-name-display'), userEmailDisplay = document.getElementById('user-email-display'), openShiftBtn = document.getElementById('open-shift-btn'), historyBtn = document.getElementById('history-btn'), logoutBtn = document.getElementById('logout-btn');
+    const globalThemeToggle = document.getElementById('global-theme-toggle');
     const addressInput = document.getElementById('address-input'), suggestContainer = document.getElementById('my-suggest-container'), newTripBtn = document.getElementById('new-trip-btn'), endShiftBtn = document.getElementById('end-shift-btn'), currentTripSection = document.getElementById('current-trip-section'), addOrderBtn = document.getElementById('add-order-btn'), currentOrdersList = document.getElementById('current-orders-list'), tripTotalSpan = document.getElementById('trip-total'), endTripBtn = document.getElementById('end-trip-btn');
     const shiftSummarySection = document.getElementById('shift-summary-section'), shiftTripsCount = document.getElementById('shift-trips-count'), shiftTotalEarnings = document.getElementById('shift-total-earnings'), goToStartScreenBtn = document.getElementById('go-to-start-screen-btn');
     const fullHistoryList = document.getElementById('full-history-list'), backToStartScreenBtn = document.getElementById('back-to-start-screen-btn'), clearHistoryBtn = document.getElementById('clear-history-btn');
@@ -56,8 +55,13 @@
     function showScreen(screenId) {
         logToScreen(`Переключаюсь на экран: ${screenId}`);
         screens.forEach(s => s.classList.add('hidden'));
-        document.getElementById(screenId)?.classList.remove('hidden');
-        if (screenId !== 'auth-screen' && screenId !== 'update-name-screen') localStorage.setItem('lastActiveScreen', screenId);
+        const screenToShow = document.getElementById(screenId);
+        if (screenToShow) {
+            screenToShow.classList.remove('hidden');
+            if (screenId !== 'auth-screen' && screenId !== 'update-name-screen') {
+                localStorage.setItem('lastActiveScreen', screenId);
+            }
+        }
     }
 
     // --- УПРАВЛЕНИЕ ФОРМАМИ ВХОДА/РЕГИСТРАЦИИ ---
@@ -120,7 +124,7 @@
     });
 
     // --- ЛОГИКА ТЕМЫ ---
-    themeToggleBtn.addEventListener('click', () => {
+    globalThemeToggle.addEventListener('click', () => {
         const currentTheme = document.body.dataset.theme;
         const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
         applyTheme(newTheme);
@@ -153,7 +157,7 @@
     // --- ОСНОВНАЯ ЛОГИКА ПРИЛОЖЕНИЯ ---
     function initMapsAndLogic() {
         if (mapsInitialized) return; 
-        if (typeof ymaps === 'undefined') { logToScreen('ОШИКА: `ymaps` не найден.'); return; }
+        if (typeof ymaps === 'undefined') { logToScreen('ОШИБКА: `ymaps` не найден.'); return; }
         ymaps.ready(async () => {
             logToScreen("API Карт готово.");
             mapsInitialized = true;
@@ -367,11 +371,12 @@
         }
     }
 
-    // Показываем основной контейнер после небольшой задержки, чтобы скрыть "моргание"
+    // Показываем основной контейнер после задержки
     setTimeout(() => {
         splashScreen.classList.add('hidden');
         appContainer.classList.remove('hidden');
+        logToScreen('Загрузка завершена. Инициализация приложения...');
         initializeApp();
-    }, 500); // 0.5 секунды
+    }, 3000); // 3 секунды
 
 })();
