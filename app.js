@@ -26,7 +26,7 @@
     const userNameDisplay = document.getElementById('user-name-display'), userEmailDisplay = document.getElementById('user-email-display'), openShiftBtn = document.getElementById('open-shift-btn'), historyBtn = document.getElementById('history-btn'), logoutBtn = document.getElementById('logout-btn');
     const addressInput = document.getElementById('address-input'), suggestContainer = document.getElementById('my-suggest-container'), newTripBtn = document.getElementById('new-trip-btn'), endShiftBtn = document.getElementById('end-shift-btn'), currentTripSection = document.getElementById('current-trip-section'), addOrderBtn = document.getElementById('add-order-btn'), currentOrdersList = document.getElementById('current-orders-list'), tripTotalSpan = document.getElementById('trip-total'), endTripBtn = document.getElementById('end-trip-btn');
     const shiftSummarySection = document.getElementById('shift-summary-section'), shiftTripsCount = document.getElementById('shift-trips-count'), shiftTotalEarnings = document.getElementById('shift-total-earnings'), goToStartScreenBtn = document.getElementById('go-to-start-screen-btn');
-    const fullHistoryList = document.getElementById('full-history-list'), backToStartScreenBtn = document.getElementById('back-to-start-screen-btn');
+    const fullHistoryList = document.getElementById('full-history-list'), backToStartScreenBtn = document.getElementById('back-to-start-screen-btn'), clearHistoryBtn = document.getElementById('clear-history-btn');
     const historyList=document.getElementById('history-list');
 
     // --- ПЕРЕМЕННЫЕ СОСТОЯНИЯ ---
@@ -41,9 +41,7 @@
         logToScreen(`Переключаюсь на экран: ${screenId}`);
         screens.forEach(s => s.classList.add('hidden'));
         document.getElementById(screenId)?.classList.remove('hidden');
-        if (screenId !== 'auth-screen' && screenId !== 'update-name-screen') {
-            localStorage.setItem('lastActiveScreen', screenId);
-        }
+        if (screenId !== 'auth-screen' && screenId !== 'update-name-screen') localStorage.setItem('lastActiveScreen', screenId);
     }
 
     // --- УПРАВЛЕНИЕ ФОРМАМИ ВХОДА/РЕГИСТРАЦИИ ---
@@ -88,8 +86,9 @@
         localStorage.removeItem('courierUserEmail');
         localStorage.removeItem('courierUserName');
         localStorage.removeItem('lastActiveScreen');
+        localStorage.removeItem('shiftInProgress'); // <-- Важно!
         showScreen('auth-screen');
-        logToScreen('Пользователь вышел. Токен удален.');
+        logToScreen('Пользователь вышел. Все локальные данные очищены.');
     });
     
     saveNameBtn.addEventListener('click', async () => {
@@ -100,11 +99,8 @@
             userName = newName;
             localStorage.setItem('courierUserName', userName);
             alert('Имя успешно сохранено!');
-            initializeApp(); // Перезапускаем приложение с новым именем
-        } catch (error) {
-            alert(`Ошибка сохранения имени: ${error.message}`);
-            logToScreen(`Ошибка сохранения имени: ${error.message}`);
-        }
+            initializeApp();
+        } catch (error) { alert(`Ошибка сохранения имени: ${error.message}`); logToScreen(`Ошибка сохранения имени: ${error.message}`); }
     });
 
     // --- ЛОКАЛЬНОЕ ХРАНИЛИЩЕ ---
@@ -126,6 +122,7 @@
     }
     function clearLocalShiftData() {
         if (userEmail) localStorage.removeItem(`courierAppState_${userEmail}`);
+        localStorage.removeItem('shiftInProgress');
         logToScreen(`Локальные данные смены для ${userEmail} очищены.`);
     }
 
@@ -181,6 +178,7 @@
     // --- ОБРАБОТЧИКИ КНОПОК ---
     openShiftBtn.addEventListener('click', () => {
         clearLocalShiftData();
+        localStorage.setItem('shiftInProgress', 'true'); // <-- Важно!
         currentTrip = []; shiftHistory = [];
         renderCurrentTrip(); renderHistory();
         updateShiftState(true);
@@ -238,6 +236,19 @@
         fetchAndRenderFullHistory();
         showScreen('history-screen');
     });
+    
+    clearHistoryBtn.addEventListener('click', async () => {
+        if (confirm('ВЫ УВЕРЕНЫ? Это действие удалит ВСЮ вашу историю смен без возможности восстановления.')) {
+            try {
+                await apiFetch('/shifts', { method: 'DELETE' });
+                alert('История успешно очищена.');
+                fetchAndRenderFullHistory();
+            } catch (error) {
+                alert(`Не удалось очистить историю: ${error.message}`);
+                logToScreen(`Ошибка очистки истории: ${error.message}`);
+            }
+        }
+    });
 
     backToStartScreenBtn.addEventListener('click', () => showScreen('start-shift-screen'));
     
@@ -277,12 +288,17 @@
     });
 
     endShiftBtn.addEventListener('click', async () => {
-        if (shiftHistory.length === 0 && currentTrip.length === 0) { alert('Нельзя завершить пустую смену.');return; }
         if (currentTrip.length > 0) {
             shiftHistory.unshift({orders:[...currentTrip]});
             currentTrip = [];
         }
-        if (shiftHistory.length === 0) { alert('Нельзя завершить смену без рейсов.');return; }
+        if (shiftHistory.length === 0) {
+            if (confirm('Смена пуста. Вы уверены, что хотите ее закрыть (она не будет сохранена)?')) {
+                clearLocalShiftData();
+                showScreen('start-shift-screen');
+            }
+            return;
+        }
         const shiftData = { date: new Date().toISOString(), trips: shiftHistory, totalEarnings: shiftHistory.reduce((total, trip) => total + trip.orders.reduce((tripSum, order) => tripSum + order.price, 0), 0), tripCount: shiftHistory.length };
         try {
             await apiFetch('/shifts', { method: 'POST', body: JSON.stringify(shiftData) });
@@ -308,22 +324,19 @@
     // --- НАЧАЛЬНАЯ ЗАГРУЗКА ПРИЛОЖЕНИЯ ---
     async function initializeApp() {
         if (authToken && userEmail) {
-            // Если имени нет (старый пользователь), показываем экран обновления
-            if (!userName) {
-                showScreen('update-name-screen');
-                return;
-            }
+            if (!userName) { showScreen('update-name-screen'); return; }
 
             userNameDisplay.textContent = userName;
             userEmailDisplay.textContent = userEmail;
             initMapsAndLogic();
-            loadState();
+            
             const lastScreen = localStorage.getItem('lastActiveScreen');
             
             if (lastScreen === 'history-screen') {
                 await fetchAndRenderFullHistory();
                 showScreen('history-screen');
-            } else if (currentTrip.length > 0 || shiftHistory.length > 0) {
+            } else if (localStorage.getItem('shiftInProgress') === 'true') {
+                loadState();
                 renderCurrentTrip(); renderHistory();
                 updateShiftState(true);
                 if(currentTrip.length > 0) {
