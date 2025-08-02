@@ -24,7 +24,18 @@
     let mapsInitialized = false;
 
     // --- УПРАВЛЕНИЕ ЭКРАНАМИ ---
-    function showScreen(screenId) { screens.forEach(s => s.classList.add('hidden')); document.getElementById(screenId)?.classList.remove('hidden'); }
+    function showScreen(screenId) {
+        logToScreen(`Переключаюсь на экран: ${screenId}`);
+        screens.forEach(s => s.classList.add('hidden'));
+        const screenToShow = document.getElementById(screenId);
+        if (screenToShow) {
+            screenToShow.classList.remove('hidden');
+            // Сохраняем последний активный экран, кроме экрана авторизации
+            if (screenId !== 'auth-screen') {
+                localStorage.setItem('lastActiveScreen', screenId);
+            }
+        }
+    }
 
     // --- УПРАВЛЕНИЕ ФОРМАМИ ВХОДА/РЕГИСТРАЦИИ ---
     showRegisterLink.addEventListener('click', (e) => { e.preventDefault(); loginForm.classList.add('hidden'); registerForm.classList.remove('hidden'); });
@@ -35,10 +46,13 @@
         const defaultHeaders = { 'Content-Type': 'application/json' };
         if (authToken) { defaultHeaders['Authorization'] = `Bearer ${authToken}`; }
         options.headers = { ...defaultHeaders, ...options.headers };
+        logToScreen(`Отправляю запрос на: ${endpoint}`);
         const response = await fetch(`/.netlify/functions/api${endpoint}`, options);
-        if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.error || 'Неизвестная ошибка сервера'); }
-        if (response.status === 201 || response.status === 204) return null;
-        return response.json();
+        if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.error || `Неизвестная ошибка сервера (статус ${response.status})`); }
+        if (response.status === 201 || response.status === 204) { logToScreen("Запрос успешен (без тела ответа)."); return null; }
+        const data = await response.json();
+        logToScreen("Получен успешный ответ от сервера.");
+        return data;
     }
 
     // --- ЛОГИКА АВТОРИЗАЦИИ ---
@@ -48,20 +62,21 @@
             authToken = data.token; userEmail = data.email;
             localStorage.setItem('courierAuthToken', authToken); localStorage.setItem('courierUserEmail', userEmail);
             initializeApp();
-        } catch (error) { alert(`Ошибка входа: ${error.message}`); }
+        } catch (error) { alert(`Ошибка входа: ${error.message}`); logToScreen(`Ошибка входа: ${error.message}`);}
     });
     registerBtn.addEventListener('click', async () => {
         try {
             await apiFetch('/register', { method: 'POST', body: JSON.stringify({ email: registerEmailInput.value, password: registerPasswordInput.value }) });
             alert('Регистрация прошла успешно! Теперь вы можете войти.');
             showLoginLink.click();
-        } catch (error) { alert(`Ошибка регистрации: ${error.message}`); }
+        } catch (error) { alert(`Ошибка регистрации: ${error.message}`); logToScreen(`Ошибка регистрации: ${error.message}`);}
     });
     logoutBtn.addEventListener('click', () => {
         authToken = null; userEmail = null;
         localStorage.removeItem('courierAuthToken'); localStorage.removeItem('courierUserEmail');
+        localStorage.removeItem('lastActiveScreen'); // Забываем последний экран
         showScreen('auth-screen');
-        logToScreen('Пользователь вышел. Данные смены сохранены локально.');
+        logToScreen('Пользователь вышел. Токен удален.');
     });
 
     // --- ЛОКАЛЬНОЕ ХРАНИЛИЩЕ ---
@@ -69,6 +84,7 @@
         if (!userEmail) return;
         const state = { currentTrip: currentTrip, shiftHistory: shiftHistory };
         localStorage.setItem(`courierAppState_${userEmail}`, JSON.stringify(state));
+        logToScreen(`Состояние для ${userEmail} сохранено.`);
     }
     function loadState() {
         if (!userEmail) return;
@@ -82,6 +98,7 @@
     }
     function clearLocalShiftData() {
         if (userEmail) localStorage.removeItem(`courierAppState_${userEmail}`);
+        logToScreen(`Локальные данные смены для ${userEmail} очищены.`);
     }
 
     // --- ОСНОВНАЯ ЛОГИКА ПРИЛОЖЕНИЯ ---
@@ -107,7 +124,7 @@
         const text = addressInput.value;
         if (text.length < 3) { suggestContainer.innerHTML = ''; return; }
         try {
-            const endpoint = userCoords ? `/suggest?text=${text}&lat=${userCoords[0]}&lon=${userCoords[1]}` : `/suggest?text=${text}`;
+            const endpoint = userCoords ? `/suggest?text=${encodeURIComponent(text)}&lat=${userCoords[0]}&lon=${userCoords[1]}` : `/suggest?text=${encodeURIComponent(text)}`;
             const suggestions = await apiFetch(endpoint);
             renderOurOwnSuggestions(suggestions);
         } catch (e) {
@@ -131,7 +148,7 @@
     function calculatePriceFromZoneName(zoneName){if(!zoneName)return{price:0};const parts=zoneName.split('_');if(parts[0]!=='zone')return{price:0};const basePrice=parseInt(parts[1],10);if(parts.length>2&&parts[2]==='plus'){const additionalPrice=parseInt(parts[3],10);return{price:basePrice+additionalPrice};} return{price:basePrice};}
     function renderCurrentTrip(){currentOrdersList.innerHTML='';let total=0;currentTrip.forEach(order=>{const li=document.createElement('li');li.textContent=`${order.address} - ${order.price} ₽`;total+=order.price;currentOrdersList.appendChild(li);});tripTotalSpan.textContent=total;}
     function renderHistory(){historyList.innerHTML='';shiftHistory.forEach((trip,index)=>{const details=document.createElement('details');const summary=document.createElement('summary');const tripTotal=trip.orders.reduce((sum,order)=>sum+order.price,0);summary.textContent=`Рейс #${shiftHistory.length-index} - ${tripTotal} ₽`;const ul=document.createElement('ul');trip.orders.forEach(order=>{const li=document.createElement('li');li.textContent=`${order.address} - ${order.price} ₽`;ul.appendChild(li);});details.appendChild(summary);details.appendChild(ul);historyList.appendChild(details);});}
-    function updateShiftState(isStarting){newTripBtn.disabled=!isStarting;endShiftBtn.disabled=!isStarting;if(!isStarting){currentTripSection.classList.add('hidden');}}
+    function updateShiftState(isStarting){logToScreen(`Обновляю состояние кнопок смены: ${isStarting}`);newTripBtn.disabled=!isStarting;endShiftBtn.disabled=!isStarting;if(!isStarting){currentTripSection.classList.add('hidden');}}
     
     // --- ОБРАБОТЧИКИ КНОПОК ---
     openShiftBtn.addEventListener('click', () => {
@@ -144,6 +161,7 @@
 
     historyBtn.addEventListener('click', async () => {
         try {
+            logToScreen('Запрашиваю историю всех смен...');
             const shifts = await apiFetch('/shifts');
             fullHistoryList.innerHTML = '';
             if (shifts.length === 0) {
@@ -154,21 +172,36 @@
                     const shiftSummary = document.createElement('summary');
                     const shiftDate = new Date(shift.date).toLocaleString('ru-RU');
                     shiftSummary.innerHTML = `Смена от ${shiftDate} - <b>${shift.totalEarnings} ₽</b> (${shift.tripCount} рейсов)`;
-                    const tripList = document.createElement('ul');
-                    shift.trips.forEach((trip, index) => {
+                    
+                    const tripsList = document.createElement('div');
+                    shift.trips.reverse().forEach((trip, index) => { // reverse, чтобы рейсы были по порядку
+                        const tripDetails = document.createElement('details');
+                        const tripSummary = document.createElement('summary');
                         const tripTotal = trip.orders.reduce((sum, order) => sum + order.price, 0);
-                        const tripLi = document.createElement('li');
-                        tripLi.innerHTML = `Рейс #${shift.trips.length - index}: ${tripTotal} ₽ (${trip.orders.length} зак.)`;
-                        tripList.appendChild(tripLi);
+                        tripSummary.textContent = `  Рейс #${index + 1}: ${tripTotal} ₽ (${trip.orders.length} зак.)`;
+                        
+                        const ordersList = document.createElement('ul');
+                        trip.orders.forEach(order => {
+                            const orderLi = document.createElement('li');
+                            orderLi.style.marginLeft = "20px";
+                            orderLi.textContent = `    - ${order.address} (${order.price} ₽)`;
+                            ordersList.appendChild(orderLi);
+                        });
+
+                        tripDetails.appendChild(tripSummary);
+                        tripDetails.appendChild(ordersList);
+                        tripsList.appendChild(tripDetails);
                     });
+
                     shiftDetails.appendChild(shiftSummary);
-                    shiftDetails.appendChild(tripList);
+                    shiftDetails.appendChild(tripsList);
                     fullHistoryList.appendChild(shiftDetails);
                 });
             }
             showScreen('history-screen');
         } catch (error) {
             alert(`Не удалось загрузить историю: ${error.message}`);
+            logToScreen(`Ошибка загрузки истории: ${error.message}`);
         }
     });
 
@@ -180,6 +213,7 @@
         const address = addressInput.value.trim();if (!address) return;
         suggestContainer.innerHTML = '';addOrderBtn.disabled = true; addOrderBtn.textContent = '...';
         try {
+            if (!ymaps.geocode) throw new Error("Функция геокодирования не готова.");
             const geoResult = await ymaps.geocode(address);
             const firstGeoObject = geoResult.geoObjects.get(0);
             if (!firstGeoObject) { alert('Адрес не найден'); return; }
@@ -243,7 +277,10 @@
             userEmailDisplay.textContent = userEmail;
             initMapsAndLogic();
             loadState();
-            if (currentTrip.length > 0 || shiftHistory.length > 0) {
+            const lastScreen = localStorage.getItem('lastActiveScreen');
+            if (lastScreen && lastScreen !== 'main-app') {
+                showScreen(lastScreen);
+            } else if (currentTrip.length > 0 || shiftHistory.length > 0) {
                 renderCurrentTrip(); renderHistory();
                 updateShiftState(true);
                 if(currentTrip.length > 0) {
