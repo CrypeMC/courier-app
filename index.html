@@ -23,6 +23,7 @@
             </div>
             <div id="register-form" class="hidden">
                 <h1>Регистрация</h1>
+                <input type="text" id="register-name" placeholder="Имя или никнейм" autocomplete="nickname"> <!-- ВОТ ОНО -->
                 <input type="email" id="register-email" placeholder="Email" autocomplete="email">
                 <input type="password" id="register-password" placeholder="Пароль" autocomplete="new-password">
                 <button id="register-btn">Зарегистрироваться</button>
@@ -35,7 +36,7 @@
     <div id="start-shift-screen" class="screen hidden">
         <div class="container">
             <h1>Смена закрыта</h1>
-            <p>Вы вошли как: <b id="user-email-display"></b></p>
+            <p>Вы вошли как: <b id="user-display"></b></p> <!-- НОВЫЙ ID -->
             <button id="open-shift-btn">Открыть новую смену</button>
             <button id="history-btn">История смен</button>
             <button id="logout-btn" class="danger-btn">Выйти</button>
@@ -95,7 +96,7 @@
 
 </div>
 
-<script src="https://api-maps.yandex.ru/2.1/?apikey=67c02755-d347-4602-94f5-0470da39c1d1&lang=ru_RU&load=geolocation,geocode,suggest"></script>
+<script src="https://api-maps.yandex.ru/2.1/?apikey=ВАШ_КЛЮЧ_ДЛЯ_КАРТ&lang=ru_RU&load=package.standard,suggest"></script>
 <script src="app.js"></script>
 
 </body>
