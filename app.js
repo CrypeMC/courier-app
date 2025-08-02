@@ -74,7 +74,7 @@
         if (authToken) { defaultHeaders['Authorization'] = `Bearer ${authToken}`; }
         options.headers = { ...defaultHeaders, ...options.headers };
         logToScreen(`Отправляю запрос на: ${endpoint}`);
-        const response = await fetch(`/.netlify/functions/api${endpoint}`, options);
+        const response = await fetch(`/api${endpoint}`, options);
         if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.error || `Неизвестная ошибка сервера (статус ${response.status})`); }
         if (response.status === 201 || response.status === 204) { logToScreen("Запрос успешен (без тела ответа)."); return null; }
         const data = await response.json();
