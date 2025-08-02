@@ -1,7 +1,7 @@
-import { MongoClient, ObjectId } from 'mongodb';
-import fetch from 'node-fetch';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+const { MongoClient, ObjectId } = require('mongodb');
+const fetch = require('node-fetch');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 const mongoUri = process.env.MONGODB_URI;
 const suggestApiKey = process.env.YANDEX_SUGGEST_API_KEY;
@@ -10,7 +10,8 @@ const jwtSecret = process.env.JWT_SECRET;
 // Используем один клиент для всех вызовов функции
 const client = new MongoClient(mongoUri);
 
-export default async function handler(request, response) {
+// Меняем "export default" на "module.exports"
+module.exports = async (request, response) => {
     // Получаем конечную точку из URL (например, 'login', 'register', 'shifts')
     const endpoint = request.url.split('/').pop().split('?')[0];
 
@@ -82,13 +83,14 @@ export default async function handler(request, response) {
             return response.status(200).json({ message: 'Имя обновлено' });
         }
 
-        throw new Error('Неверный маршрут или метод');
+        // Если ни один маршрут не совпал, возвращаем ошибку 404
+        return response.status(404).json({ error: 'Маршрут не найден' });
 
     } catch (error) {
         console.error('Ошибка в функции:', error);
         return response.status(400).json({ error: error.message });
     } finally {
-        // Важно: Vercel управляет подключениями, но лучше закрывать явно
+        // Закрываем соединение с базой данных
         await client.close();
     }
-}
+};
